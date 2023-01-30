@@ -63,6 +63,10 @@ class EnvSettings:
     def aimms_procedure():
         return os.getenv("AIMMS_PROCEDURE", "")
 
+    # TEACOS config
+    @staticmethod
+    def teacos_API_url():
+        return os.getenv("TEACOS_API_URL", "")
 
     @staticmethod
     def db_host():

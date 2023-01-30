@@ -1,15 +1,20 @@
 import base64
 import json
 import subprocess
-from time import sleep
+import time
 from uuid import uuid4
 
+import requests
+import rq as rq
+from esdl.esdl_handler import EnergySystemHandler
 from minio import S3Error
 
 from tno.aimms_adapter.model.model import Model, ModelState
 from tno.aimms_adapter.settings import EnvSettings
 from tno.aimms_adapter.types import ModelRunInfo, OperaAdapterConfig, ModelRun
 from tno.aimms_adapter import executor
+from tno.aimms_adapter.universal_link.Uniform_ESDL_AIMMS_link import handler
+from tno.aimms_adapter.universal_link.Write_TO_ESDL import OutputESDL
 from tno.aimms_adapter.universal_link.universal_link import UniversalLink
 from tno.shared.log import get_logger
 
@@ -40,39 +45,45 @@ class Opera(Model):
         )
 
     def start_aimms_model(self, config: OperaAdapterConfig, model_run_id):
-        logger.info(f"Loading ESDL from store at {config.input_esdl_file_path}")
-        try:
-            input_esdl_bytes = self.load_from_minio(config.input_esdl_file_path)
-            if input_esdl_bytes is None:
-                logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
-                return ModelRunInfo(
-                    model_run_id=model_run_id,
-                    state=ModelState.ERROR,
-                    reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
-                )
-        except S3Error as e:
-            logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
-            return ModelRunInfo(
-                model_run_id=model_run_id,
-                state=ModelState.ERROR,
-                reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
-            )
+        # logger.info(f"Loading ESDL from store at {config.input_esdl_file_path}")
+        # try:
+        #     input_esdl_bytes = self.load_from_minio(config.input_esdl_file_path)
+        #     if input_esdl_bytes is None:
+        #         logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
+        #         return ModelRunInfo(
+        #             model_run_id=model_run_id,
+        #             state=ModelState.ERROR,
+        #             reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
+        #         )
+        # except S3Error as e:
+        #     logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
+        #     return ModelRunInfo(
+        #         model_run_id=model_run_id,
+        #         state=ModelState.ERROR,
+        #         reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
+        #     )
 
-        input_esdl = input_esdl_bytes.decode('utf-8')
-        print('ESDL:', input_esdl)
+        # input_esdl = input_esdl_bytes.decode('utf-8')
+
+        # esh = EnergySystemHandler()
+        # input_esdl = esh.load_file('test/output_Tholen-simple v04-26kW_output.esdl')
+        inputfilename = 'test/output_Tholen-simple v04-26kW_output.esdl'
+
+        print('ESDL:', inputfilename)
 
         # convert ESDL to MySQL
         logger.info("Converting ESDL using Universal Link")
-        ul = UniversalLink(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
-                           user=EnvSettings.db_user(), password=EnvSettings.db_password())
-        success, error = ul.esdl_to_db(input_esdl)
-        if not success:
-            logger.error(f"Error executing Universal link: {error}")
-            return ModelRunInfo(
-                model_run_id=model_run_id,
-                state=ModelState.ERROR,
-                reason=error
-            )
+        # ul = handler(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
+        #                    user=EnvSettings.db_user(), password=EnvSettings.db_password())
+        ul = handler(inputfilename)
+        # success, error = ul.esdl_to_db(input_esdl)
+        # if not success:
+        #     logger.error(f"Error executing Universal link: {error}")
+        #     return ModelRunInfo(
+        #         model_run_id=model_run_id,
+        #         state=ModelState.ERROR,
+        #         reason=error
+        #     )
 
         logger.info("ESDL Database created for use by AIMMS")
         # start aimms via subprocess
@@ -80,48 +91,15 @@ class Opera(Model):
         print(f"AIMMS model at {EnvSettings.aimms_model_path()}")
         print(f"AIMMS start procedure {EnvSettings.aimms_procedure()}")
 
-        aimms_exe_path = "C:\\data\\git\\aimms-adapter\\subprocess_test\\slow.bat"
-        start_procedure = "default_setup"
-        aimms_model_path = "c:\\bla\model.aimms"
-        params = [aimms_exe_path, "-R", start_procedure, aimms_model_path] # --minimized
-
-        # fake opera by running Ping command, that takes some time to run
-        params = ["ping", "-n", "20", "127.0.0.1"]
-
-        logger.info("Starting AIMMS...")
-        aimms = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        running = True
-        output = []
-
-        while running:
-            for line in aimms.stdout: # this is blocking
-                logger.info(f"AIMMS: {line.strip()}")
-                output.append(line)
-            running = aimms.poll() is None
-            #if aimms.poll() is not None: # finished process
-            #    running = False
-
-        # wait for aimms to finish
-        print()
-        # get output
-        if aimms.returncode == 0:
-            logger.info("AIMMS has finished, collecting results...")
-            return ModelRunInfo(
-                model_run_id=model_run_id,
-                state=ModelState.SUCCEEDED,
-            )#, simulation_id
-        else:
-            # error
-            logger.error(f'Running AIMMS failed, returncode={aimms.returncode}')
-            logger.error(f'Output from AIMMS: {output}')
-            return ModelRunInfo(
-                model_run_id=model_run_id,
-                state=ModelState.ERROR,
-                reason=f'AIMMS failed, return code: {aimms.returncode}. See logs for more info.',
-            )
+        requests.post(EnvSettings.teacos_API_url())
+        time.sleep(20)
 
 
+        outputfilename = 'test/Test_Output.esdl'
+        OutputESDL(EnvSettings.db_name(), inputfilename ,outputfilename)
 
+        logger.info("AIMMS has finished, collecting results...")
+        return ModelRunInfo(model_run_id=model_run_id, state=ModelState.SUCCEEDED, )
 
     # @staticmethod
     # def monitor_aimms_progress(simulation_id, model_run_id):
