@@ -1,27 +1,21 @@
-import base64
 import json
-import subprocess
 import time
 from uuid import uuid4
 
 import requests
-import rq as rq
-from esdl.esdl_handler import EnergySystemHandler
-from minio import S3Error
 
+from tno.aimms_adapter import executor
 from tno.aimms_adapter.model.model import Model, ModelState
 from tno.aimms_adapter.settings import EnvSettings
 from tno.aimms_adapter.types import ModelRunInfo, OperaAdapterConfig, ModelRun
-from tno.aimms_adapter import executor
-from tno.aimms_adapter.universal_link.Uniform_ESDL_AIMMS_link import handler
-from tno.aimms_adapter.universal_link.Write_TO_ESDL import OutputESDL
-from tno.aimms_adapter.universal_link.universal_link import UniversalLink
+from tno.aimms_adapter.universal_link.Uniform_ESDL_AIMMS_link import UniversalLink
+from tno.aimms_adapter.universal_link.Write_TO_ESDL import SQLESDL
 from tno.shared.log import get_logger
 
 logger = get_logger(__name__)
 
 
-class Opera(Model):
+class TEACOS(Model):
     def request(self):
 
         model_run_id = str(uuid4())
@@ -67,36 +61,45 @@ class Opera(Model):
 
         # esh = EnergySystemHandler()
         # input_esdl = esh.load_file('test/output_Tholen-simple v04-26kW_output.esdl')
-        inputfilename = 'test/output_Tholen-simple v04-26kW_output.esdl'
+        inputfilename = 'test/Tholen-simple v04-26kW_output.esdl'
 
         print('ESDL:', inputfilename)
 
         # convert ESDL to MySQL
         logger.info("Converting ESDL using Universal Link")
-        # ul = handler(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
-        #                    user=EnvSettings.db_user(), password=EnvSettings.db_password())
-        ul = handler(inputfilename)
-        # success, error = ul.esdl_to_db(input_esdl)
-        # if not success:
-        #     logger.error(f"Error executing Universal link: {error}")
-        #     return ModelRunInfo(
-        #         model_run_id=model_run_id,
-        #         state=ModelState.ERROR,
-        #         reason=error
-        #     )
+        ul = UniversalLink(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
+                           user=EnvSettings.db_user(), password=EnvSettings.db_password())
+
+
+
+        success, error = ul.esdl_to_db(inputfilename)
+        if not success:
+            logger.error(f"Error executing Universal link: {error}")
+            return ModelRunInfo(
+                model_run_id=model_run_id,
+                state=ModelState.ERROR,
+                reason=error
+            )
 
         logger.info("ESDL Database created for use by AIMMS")
-        # start aimms via subprocess
-        print(f"AIMMS binary at {EnvSettings.aimms_exe_path()}")
-        print(f"AIMMS model at {EnvSettings.aimms_model_path()}")
-        print(f"AIMMS start procedure {EnvSettings.aimms_procedure()}")
+
 
         requests.post(EnvSettings.teacos_API_url())
+
         time.sleep(20)
-
-
         outputfilename = 'test/Test_Output.esdl'
-        OutputESDL(EnvSettings.db_name(), inputfilename ,outputfilename)
+
+        ulback = SQLESDL(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
+                           user=EnvSettings.db_user(), password=EnvSettings.db_password())
+
+        success, error = ulback.db_to_esdl(esdl_filename=inputfilename,output_esdl_filename=outputfilename)
+        if not success:
+            logger.error(f"Error executing Universal link: {error}")
+            return ModelRunInfo(
+                model_run_id=model_run_id,
+                state=ModelState.ERROR,
+                reason=error
+            )
 
         logger.info("AIMMS has finished, collecting results...")
         return ModelRunInfo(model_run_id=model_run_id, state=ModelState.SUCCEEDED, )
@@ -112,7 +115,7 @@ class Opera(Model):
         start_aimms_info = self.start_aimms_model(config, model_run_id)
         if start_aimms_info.state == ModelState.RUNNING:
             # monitor AIMMS progress
-            #monitor_essim_progress_info = Opera.monitor_essim_progress(simulation_id, model_run_id)
+            #monitor_essim_progress_info = TEACOS.monitor_essim_progress(simulation_id, model_run_id)
             #if monitor_essim_progress_info.state == ModelState.ERROR:
             #    return monitor_essim_progress_info
             return start_aimms_info
@@ -120,7 +123,7 @@ class Opera(Model):
             return start_aimms_info
 
         ## Monitor KPI progress
-        #monitor_kpi_progress_info = Opera.monitor_kpi_progress(simulation_id, model_run_id)
+        #monitor_kpi_progress_info = TEACOS.monitor_kpi_progress(simulation_id, model_run_id)
         #return monitor_kpi_progress_info
 
     def run(self, model_run_id: str):
@@ -136,7 +139,7 @@ class Opera(Model):
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.ERROR,
-                reason="Error in Opera.run(): model_run_id unknown or model is in wrong state"
+                reason="Error in TEACOS.run(): model_run_id unknown or model is in wrong state"
             )
 
     def status(self, model_run_id: str):

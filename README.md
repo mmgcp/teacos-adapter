@@ -1,4 +1,4 @@
-# MMvIB Opera Adapter
+# MMvIB TEACOS Adapter
 
 The API is available at http://localhost:9300/openapi
 

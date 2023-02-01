@@ -2,11 +2,11 @@ from flask import jsonify
 from flask_smorest import Blueprint
 from flask.views import MethodView
 
-from tno.aimms_adapter.model.opera import Opera
+from tno.aimms_adapter.model.teacos import TEACOS
 from tno.shared.log import get_logger
 from tno.aimms_adapter.types import ModelRunInfo, OperaAdapterConfig
 
-opera = Opera()
+opera = TEACOS()
 
 logger = get_logger(__name__)
 
