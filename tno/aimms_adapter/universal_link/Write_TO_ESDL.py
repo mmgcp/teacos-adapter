@@ -1,15 +1,24 @@
 #!/usr/bin/env python
 # coding: utf-8
-from typing import Tuple
-from uuid import uuid4
-
+import os
 from dotenv import load_dotenv
+from pyecore.ecore import EEnum, EEnumLiteral
+from pyecore.valuecontainer import EOrderedSet
 from sqlalchemy import create_engine
+import pymysql
+from uuid import uuid4
+from typing import Union, Tuple
+
+# In[1]:
+load_dotenv()
 
 from esdl.esdl_handler import EnergySystemHandler
 from esdl import esdl
 import pymysql
 import pandas as pd
+import warnings
+import datetime
+import time
 
 
 # if __name__ == "__main__":
@@ -36,13 +45,30 @@ class SQLESDL:
         self.engine = create_engine(self.database_url)
         self.conn = self.engine.raw_connection()
         self.cursor = self.conn.cursor()
+        start = datetime.datetime.now()
+        done = False
+        counter = 0;
+        while done == False:
+            counter += 1
+            self.log_table = self.get_sql('SELECT * FROM ' + self.database_name + '.log_table;')
+            if (len(self.log_table.index) > 0 and self.log_table.iloc[-1].log == 'Finished DB Write'):
+                end = datetime.datetime.now()
+                done = True
+            else:
+                if counter == 120:
+                    raise Exception("Logging failed")
+                    exit(1)
+                time.sleep(1)
+
         self.tables = self.get_sql(
             "Select table_schema as database_name, table_name from information_schema.tables where table_type = 'BASE TABLE'and table_schema = '" + self.database_name + "' order by database_name, table_name;")
         for i in self.tables.table_name:
-            setattr(self, i, self.get_sql('SELECT * FROM ' + self.database_name + '.' + i + ';'))
+            if i != 'log_table':
+                setattr(self, i, self.get_sql('SELECT * FROM ' + self.database_name + '.' + i + ';'))
 
     def __del__(self):
         self.conn.close()
+        self.engine.dispose()
 
     def db_to_esdl(self, esdl_filename, output_esdl_filename) -> Tuple[bool, str]:
         """
@@ -98,7 +124,11 @@ class SQLESDL:
         AssetProfiles = esh.get_all_instances_of_type(esdl.GenericProfile)
         for p in AssetProfiles:
             if type(p) == esdl.InfluxDBProfile:
-                p.multiplier = float(dfAssetProfiles.loc[dfAssetProfiles["field"] == p.field].multiplier)
+                dfField = dfAssetProfiles.loc[dfAssetProfiles["field"] == p.field]
+                if (type(dfField) == pd.Series):
+                    p.multiplier = float(dfField.multiplier)
+
+                print(p.id, p.multiplier)
 
         df2 = self.KPIs
         df3 = df2.where(df2.id_KPI.str.contains('TEACOS_Was_Optional_')).dropna()

@@ -15,7 +15,7 @@
     <area xsi:type="esdl:Area" scope="MUNICIPALITY" name="Tholen" id="GM0716">
       <asset xsi:type="esdl:PVInstallation" power="40000.0" state="ENABLED" name="PVInstallation_1907" surfaceArea="7979" id="1907945a-5ffe-4c08-b9ce-9bc8689f943c">
         <port xsi:type="esdl:OutPort" carrier="279b10f4-c971-454d-9390-60a6970ab471" name="Out" connectedTo="ad335aa5-2ebc-4148-85ac-b4276f64b7fc" id="4c3f787e-df4f-4ab8-93ab-93dcde9827e2">
-          <profile xsi:type="esdl:InfluxDBProfile" port="8086" multiplier="730640.0" endDate="2020-01-01T00:00:00.000000+0100" host="http://influxdb" id="6fc38691-9d02-4f58-bfde-455eb641cb82" database="energy_profiles" startDate="2019-01-01T00:00:00.000000+0100" field="Zon_deBilt" measurement="standard_profiles" filters="">
+          <profile xsi:type="esdl:InfluxDBProfile" port="8086" multiplier="28813.72" endDate="2020-01-01T00:00:00.000000+0100" host="http://influxdb" id="6fc38691-9d02-4f58-bfde-455eb641cb82" database="energy_profiles" startDate="2019-01-01T00:00:00.000000+0100" field="Zon_deBilt" measurement="standard_profiles" filters="">
             <profileQuantityAndUnit xsi:type="esdl:QuantityAndUnitType" id="9d70cc41-750c-4c77-9f80-4bd89bc9020b" unit="WATTHOUR" description="Energy in kWh" physicalQuantity="ENERGY" multiplier="KILO"/>
           </profile>
         </port>
@@ -37,7 +37,7 @@
             <profileQuantityAndUnit xsi:type="esdl:QuantityAndUnitType" id="2b8f2157-4f95-4b2d-8944-cedc43a2cad9" physicalQuantity="POWER" description="Power in Watt" unit="WATT"/>
           </range>
         </constraint>
-        <KPIs xsi:type="esdl:KPIs" id="bd9c0c61-d515-4b41-a297-71bf15e702aa">
+        <KPIs xsi:type="esdl:KPIs" id="b870f0c3-7a01-42ad-81e0-941136e186cf">
           <kpi xsi:type="esdl:IntKPI" value="1" id="TEACOS_Was_Optional_PVInstallation_1907" name="1"/>
           <kpi xsi:type="esdl:IntKPI" value="40000" id="TEACOS_Inversted_W_PVInstallation_1907" name="TEACOS_Inversted_W_PVInstallation_1907"/>
         </KPIs>

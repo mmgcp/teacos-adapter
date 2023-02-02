@@ -60,6 +60,7 @@ class UniversalLink:
 
     def __del__(self):
         self.conn.close()
+        self.engine.dispose()
 
     def esdl_to_db(self, esdl_filename) -> Tuple[bool, str]:
         """

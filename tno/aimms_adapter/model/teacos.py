@@ -61,7 +61,7 @@ class TEACOS(Model):
 
         # esh = EnergySystemHandler()
         # input_esdl = esh.load_file('test/output_Tholen-simple v04-26kW_output.esdl')
-        inputfilename = 'test/Tholen-simple v04-26kW_output.esdl'
+        inputfilename = 'ESDLs/Tholen-simple v04-26kW_output.esdl'
 
         print('ESDL:', inputfilename)
 
@@ -73,6 +73,7 @@ class TEACOS(Model):
 
 
         success, error = ul.esdl_to_db(inputfilename)
+        del ul
         if not success:
             logger.error(f"Error executing Universal link: {error}")
             return ModelRunInfo(
@@ -83,16 +84,16 @@ class TEACOS(Model):
 
         logger.info("ESDL Database created for use by AIMMS")
 
+        Credentials = {"User": EnvSettings.db_user(), "Password": EnvSettings.db_password()}
+        requests.post(EnvSettings.teacos_API_url(),json=Credentials)
 
-        requests.post(EnvSettings.teacos_API_url())
-
-        time.sleep(20)
         outputfilename = 'test/Test_Output.esdl'
 
         ulback = SQLESDL(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
                            user=EnvSettings.db_user(), password=EnvSettings.db_password())
 
         success, error = ulback.db_to_esdl(esdl_filename=inputfilename,output_esdl_filename=outputfilename)
+        del ulback
         if not success:
             logger.error(f"Error executing Universal link: {error}")
             return ModelRunInfo(
@@ -103,6 +104,8 @@ class TEACOS(Model):
 
         logger.info("AIMMS has finished, collecting results...")
         return ModelRunInfo(model_run_id=model_run_id, state=ModelState.SUCCEEDED, )
+
+
 
     # @staticmethod
     # def monitor_aimms_progress(simulation_id, model_run_id):
