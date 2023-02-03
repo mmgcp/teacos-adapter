@@ -1,7 +1,7 @@
 FROM python:3.10-slim
 
 ENV ENV=prod
-ENV FLASK_APP=tno/mmvib_registry/main.py
+ENV FLASK_APP=tno/aimms_adapter/main.py
 
 RUN apt-get update && apt-get install -y curl git
 
