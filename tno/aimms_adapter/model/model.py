@@ -6,7 +6,7 @@ from uuid import uuid4
 from minio import Minio
 
 from tno.aimms_adapter.settings import EnvSettings
-from tno.aimms_adapter.types import ModelRun, ModelState, ModelRunInfo
+from tno.aimms_adapter.data_types import ModelRun, ModelState, ModelRunInfo
 from tno.shared.log import get_logger
 
 logger = get_logger(__name__)
@@ -82,7 +82,7 @@ class Model(ABC):
             res = self.process_results(result)
             if res and self.minio_client:
                 content = BytesIO(bytes(res, 'ascii'))
-                path = self.model_run_dict[model_run_id].config.output_file_path
+                path = self.model_run_dict[model_run_id].config.output_esdl_file_path
                 bucket = path.split("/")[0]
                 rest_of_path = "/".join(path.split("/")[1:])
 

@@ -23,10 +23,9 @@ else:
     print("Endpoint /model/request not ok!")
     exit(1)
 
-#Nog aanpassen richting Teacos
 post_body = {
-  "input_esdl_file_path": "opera-test/NL II3050 with carriers_marginal_cost.esdl",
-  "output_esdl_file_path": "output.esdl"
+  "input_esdl_file_path": "test/Tholen-simple v04-26kW_output.esdl",
+  "output_esdl_file_path": "test/output.esdl"
 }
 
 res = requests.post(api_endpoint + '/model/initialize/' + model_run_id, json=post_body)

@@ -1,22 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
-import os
-from dotenv import load_dotenv
-from pyecore.ecore import EEnum, EEnumLiteral
-from pyecore.valuecontainer import EOrderedSet
-from sqlalchemy import create_engine
-import pymysql
-from uuid import uuid4
-from typing import Union, Tuple
 
-# In[1]:
-load_dotenv()
+from sqlalchemy import create_engine
+from uuid import uuid4
+from typing import Tuple
 
 from esdl.esdl_handler import EnergySystemHandler
 from esdl import esdl
 import pymysql
 import pandas as pd
-import warnings
 import datetime
 import time
 
@@ -86,6 +78,21 @@ class SQLESDL:
         except Exception as e:
             return False, str(e)
 
+    def db_to_esdl_str(self, esdl_str_in) -> Tuple[bool, str, str]:
+        """
+        :param esdl_str_in: original esdl file
+        :return: tuple (success (True/False), error message, esdl_string_out)
+        """
+        print(f'Generating ESDL...')
+        esh = EnergySystemHandler()
+        try:
+            esh.load_from_string(esdl_str_in)
+            print(f'Parsing Results...')
+            esdl_str_out = self.generate_esdl_str(esh)
+            return True, 'Ok', esdl_str_out
+        except Exception as e:
+            return False, str(e), ''
+
     def get_sql(self, query):
         try:
             result = pd.read_sql(query, self.database_url)
@@ -96,8 +103,7 @@ class SQLESDL:
     def getAttributes(self):
         return dir(self)
 
-    def generate_esdl(self, esh, outputfile, context={'User': 'Test'}):
-
+    def _generate_esdl(self, esh, context={'User': 'Test'}):
         asset = esh.get_all_instances_of_type(esdl.Asset)
         proj = []
         for a in asset:
@@ -163,8 +169,15 @@ class SQLESDL:
             kpiConstraints = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI))
             changables.KPIs.kpi.append(kpiConstraints)
 
+    def generate_esdl(self, esh, outputfile, context={'User': 'Test'}):
+        self._generate_esdl(esh, context)
+
         print(esh.to_string())
         esh.save_as(outputfile)
+
+    def generate_esdl_str(self, esh, context={'User': 'Test'}) -> str:
+        self._generate_esdl(esh, context)
+        return esh.to_string()
 
 
 # if __name__ == "__main__":

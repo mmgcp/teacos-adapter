@@ -3,11 +3,12 @@ import time
 from uuid import uuid4
 
 import requests
+from minio import S3Error
 
 from tno.aimms_adapter import executor
 from tno.aimms_adapter.model.model import Model, ModelState
 from tno.aimms_adapter.settings import EnvSettings
-from tno.aimms_adapter.types import ModelRunInfo, TeacosAdapterConfig, ModelRun
+from tno.aimms_adapter.data_types import ModelRunInfo, TeacosAdapterConfig, ModelRun
 from tno.aimms_adapter.universal_link.Uniform_ESDL_AIMMS_link import UniversalLink
 from tno.aimms_adapter.universal_link.Write_TO_ESDL import SQLESDL
 from tno.shared.log import get_logger
@@ -39,38 +40,37 @@ class TEACOS(Model):
         )
 
     def start_aimms_model(self, config: TeacosAdapterConfig, model_run_id):
-        # logger.info(f"Loading ESDL from store at {config.input_esdl_file_path}")
-        # try:
-        #     input_esdl_bytes = self.load_from_minio(config.input_esdl_file_path)
-        #     if input_esdl_bytes is None:
-        #         logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
-        #         return ModelRunInfo(
-        #             model_run_id=model_run_id,
-        #             state=ModelState.ERROR,
-        #             reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
-        #         )
-        # except S3Error as e:
-        #     logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
-        #     return ModelRunInfo(
-        #         model_run_id=model_run_id,
-        #         state=ModelState.ERROR,
-        #         reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
-        #     )
-
-        # input_esdl = input_esdl_bytes.decode('utf-8')
-
-        # esh = EnergySystemHandler()
-        # input_esdl = esh.load_file('test/output_Tholen-simple v04-26kW_output.esdl')
-        inputfilename = 'ESDLs/Tholen-simple v04-26kW_output.esdl'
-
-        print('ESDL:', inputfilename)
-
         # convert ESDL to MySQL
         logger.info("Converting ESDL using Universal Link")
         ul = UniversalLink(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
                            user=EnvSettings.db_user(), password=EnvSettings.db_password())
 
-        success, error = ul.esdl_to_db(inputfilename)
+        if EnvSettings.minio_endpoint():
+            logger.info(f"Loading ESDL from Minio at {config.input_esdl_file_path}")
+            try:
+                input_esdl_bytes = self.load_from_minio(config.input_esdl_file_path)
+                if input_esdl_bytes is None:
+                    logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
+                    return ModelRunInfo(
+                        model_run_id=model_run_id,
+                        state=ModelState.ERROR,
+                        reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
+                    )
+            except S3Error as e:
+                logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
+                return ModelRunInfo(
+                    model_run_id=model_run_id,
+                    state=ModelState.ERROR,
+                    reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
+                )
+
+            input_esdl = input_esdl_bytes.decode('utf-8')
+            success, error = ul.esdl_str_to_db(input_esdl)
+        else:
+            inputfilename = '..\..\test\Tholen-simple v04-26kW_output.esdl'
+            print('ESDL:', inputfilename)
+            success, error = ul.esdl_to_db(inputfilename)
+
         del ul
         if not success:
             logger.error(f"Error executing Universal link: {error}")
@@ -89,12 +89,15 @@ class TEACOS(Model):
 
         requests.post(EnvSettings.teacos_API_url(), json=Credentials)
 
-        outputfilename = 'test/Test_Output.esdl'
-
         ulback = SQLESDL(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
                          user=EnvSettings.db_user(), password=EnvSettings.db_password())
 
-        success, error = ulback.db_to_esdl(esdl_filename=inputfilename, output_esdl_filename=outputfilename)
+        if EnvSettings.minio_endpoint():
+            success, error, output_esdl = ulback.db_to_esdl_str(input_esdl)
+        else:
+            outputfilename = 'test/Test_Output.esdl'
+            success, error = ulback.db_to_esdl(esdl_filename=inputfilename, output_esdl_filename=outputfilename)
+
         del ulback
         if not success:
             logger.error(f"Error executing Universal link: {error}")
@@ -103,9 +106,15 @@ class TEACOS(Model):
                 state=ModelState.ERROR,
                 reason=error
             )
-
-        logger.info("AIMMS has finished, collecting results...")
-        return ModelRunInfo(model_run_id=model_run_id, state=ModelState.SUCCEEDED, )
+        else:
+            logger.info("AIMMS has finished, collecting results...")
+            if EnvSettings.minio_endpoint():
+                return Model.store_result(self, model_run_id=model_run_id, result=output_esdl)
+            else:
+                return ModelRunInfo(
+                    model_run_id=model_run_id,
+                    state=ModelState.SUCCEEDED,
+                )
 
     # @staticmethod
     # def monitor_aimms_progress(simulation_id, model_run_id):
@@ -125,9 +134,6 @@ class TEACOS(Model):
         else:
             return start_aimms_info
 
-        ## Monitor KPI progress
-        # monitor_kpi_progress_info = TEACOS.monitor_kpi_progress(simulation_id, model_run_id)
-        # return monitor_kpi_progress_info
 
     def run(self, model_run_id: str):
 

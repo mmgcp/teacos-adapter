@@ -4,7 +4,7 @@ from flask.views import MethodView
 
 from tno.aimms_adapter.model.teacos import TEACOS
 from tno.shared.log import get_logger
-from tno.aimms_adapter.types import ModelRunInfo, TeacosAdapterConfig
+from tno.aimms_adapter.data_types import ModelRunInfo, TeacosAdapterConfig
 
 teacos = TEACOS()
 

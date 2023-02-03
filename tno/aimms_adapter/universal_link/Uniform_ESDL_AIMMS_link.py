@@ -78,6 +78,17 @@ class UniversalLink:
         except Exception as e:
             return False, str(e)
 
+    def esdl_str_to_db(self, esdl_str) -> Tuple[bool, str]:
+        print(f'Processing ESDL...')
+        esh = EnergySystemHandler()
+        try:
+            esh.load_from_string(esdl_str)
+            print(f'Parsing ESDL...')
+            self.parse_esdl(esh)
+            return True, 'Ok'
+        except Exception as e:
+            return False, str(e)
+
     def get_sql(self, query):
         try:
             result = pd.read_sql(query, self.database_url)

@@ -23,7 +23,6 @@ class EnvSettings:
     def is_production():
         return EnvSettings.env() == "prod"
 
-
     @staticmethod
     def minio_endpoint():
         return os.getenv("MINIO_ENDPOINT", None)
