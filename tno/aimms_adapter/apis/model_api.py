@@ -4,9 +4,9 @@ from flask.views import MethodView
 
 from tno.aimms_adapter.model.teacos import TEACOS
 from tno.shared.log import get_logger
-from tno.aimms_adapter.types import ModelRunInfo, OperaAdapterConfig
+from tno.aimms_adapter.types import ModelRunInfo, TeacosAdapterConfig
 
-opera = TEACOS()
+teacos = TEACOS()
 
 logger = get_logger(__name__)
 
@@ -18,17 +18,17 @@ class Request(MethodView):
 
     @api.response(200, ModelRunInfo.Schema())
     def get(self):
-        res = opera.request()
+        res = teacos.request()
         return jsonify(res)
 
 
 @api.route("/initialize/<model_run_id>")
 class Initialize(MethodView):
 
-    @api.arguments(OperaAdapterConfig.Schema())
+    @api.arguments(TeacosAdapterConfig.Schema())
     @api.response(201, ModelRunInfo.Schema())
     def post(self, config, model_run_id: str):
-        res = opera.initialize(model_run_id=model_run_id, config=config)
+        res = teacos.initialize(model_run_id=model_run_id, config=config)
         return jsonify(res)
 
 
@@ -37,7 +37,7 @@ class Run(MethodView):
 
     @api.response(200, ModelRunInfo.Schema())
     def get(self, model_run_id: str):
-        res = opera.run(model_run_id=model_run_id)
+        res = teacos.run(model_run_id=model_run_id)
         return jsonify(res)
 
 
@@ -46,7 +46,7 @@ class Status(MethodView):
 
     @api.response(200, ModelRunInfo.Schema())
     def get(self, model_run_id: str):
-        res = opera.status(model_run_id=model_run_id)
+        res = teacos.status(model_run_id=model_run_id)
         return jsonify(res)
 
 
@@ -55,7 +55,7 @@ class Results(MethodView):
 
     @api.response(200, ModelRunInfo.Schema())
     def get(self, model_run_id: str):
-        res = opera.results(model_run_id=model_run_id)
+        res = teacos.results(model_run_id=model_run_id)
         return jsonify(res)
 
 
@@ -64,5 +64,5 @@ class Remove(MethodView):
 
     @api.response(200, ModelRunInfo.Schema())
     def get(self, model_run_id: str):
-        resp = opera.remove(model_run_id=model_run_id)
+        resp = teacos.remove(model_run_id=model_run_id)
         return resp, 200

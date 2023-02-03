@@ -7,7 +7,7 @@ import requests
 from tno.aimms_adapter import executor
 from tno.aimms_adapter.model.model import Model, ModelState
 from tno.aimms_adapter.settings import EnvSettings
-from tno.aimms_adapter.types import ModelRunInfo, OperaAdapterConfig, ModelRun
+from tno.aimms_adapter.types import ModelRunInfo, TeacosAdapterConfig, ModelRun
 from tno.aimms_adapter.universal_link.Uniform_ESDL_AIMMS_link import UniversalLink
 from tno.aimms_adapter.universal_link.Write_TO_ESDL import SQLESDL
 from tno.shared.log import get_logger
@@ -38,7 +38,7 @@ class TEACOS(Model):
             model_run_id=model_run_id,
         )
 
-    def start_aimms_model(self, config: OperaAdapterConfig, model_run_id):
+    def start_aimms_model(self, config: TeacosAdapterConfig, model_run_id):
         # logger.info(f"Loading ESDL from store at {config.input_esdl_file_path}")
         # try:
         #     input_esdl_bytes = self.load_from_minio(config.input_esdl_file_path)
@@ -134,7 +134,7 @@ class TEACOS(Model):
         res = Model.run(self, model_run_id=model_run_id)
 
         if model_run_id in self.model_run_dict and self.model_run_dict[model_run_id].state == ModelState.RUNNING:
-            config: OperaAdapterConfig = self.model_run_dict[model_run_id].config
+            config: TeacosAdapterConfig = self.model_run_dict[model_run_id].config
             executor.submit_stored(model_run_id, self.threaded_run, model_run_id, config)
             res.state = self.model_run_dict[model_run_id].state
             return res

@@ -18,7 +18,7 @@ class ModelState(str, Enum):
 
 
 @dataclass
-class OperaAdapterConfig:
+class TeacosAdapterConfig:
     input_esdl_file_path: Optional[str] = None
     output_esdl_file_path: Optional[str] = None
 
@@ -26,7 +26,7 @@ class OperaAdapterConfig:
 @dataclass
 class ModelRun:
     state: ModelState
-    config: OperaAdapterConfig
+    config: TeacosAdapterConfig
     result: dict
 
 
