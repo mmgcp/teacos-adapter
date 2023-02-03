@@ -69,6 +69,24 @@ class EnvSettings:
         return os.getenv("TEACOS_API_URL", "")
 
     @staticmethod
+    def teacos_user():
+        return os.getenv("TEACOS_USER", "")
+
+    @staticmethod
+    def teacos_pw():
+        return os.getenv("TEACOS_PASSWORD", "")
+
+    @staticmethod
+    def teacos_env():
+        return os.getenv("TEACOS_ENV", "")
+
+
+
+
+
+
+
+    @staticmethod
     def db_host():
         return os.getenv("DATABASE_HOST", "")
     @staticmethod

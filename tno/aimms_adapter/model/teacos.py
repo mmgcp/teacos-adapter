@@ -30,7 +30,7 @@ class TEACOS(Model):
             return ModelRunInfo(
                 state=ModelState.PENDING,
                 reason="A model is already running",
-                model_run_id = model_run_id
+                model_run_id=model_run_id
             )
 
         return ModelRunInfo(
@@ -70,8 +70,6 @@ class TEACOS(Model):
         ul = UniversalLink(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
                            user=EnvSettings.db_user(), password=EnvSettings.db_password())
 
-
-
         success, error = ul.esdl_to_db(inputfilename)
         del ul
         if not success:
@@ -84,15 +82,19 @@ class TEACOS(Model):
 
         logger.info("ESDL Database created for use by AIMMS")
 
-        Credentials = {"User": EnvSettings.db_user(), "Password": EnvSettings.db_password()}
-        requests.post(EnvSettings.teacos_API_url(),json=Credentials)
+        Credentials = {"TEACOS_USER": EnvSettings.teacos_user(), "TEACOS_PASSWORD": EnvSettings.teacos_pw(),
+                       "TEACOS_ENV": EnvSettings.teacos_env(),
+                       "DB_Host": EnvSettings.db_host(), "DB_Name": EnvSettings.db_name(),
+                       "DB_User": EnvSettings.db_user(), "DB_Password": EnvSettings.db_password()}
+
+        requests.post(EnvSettings.teacos_API_url(), json=Credentials)
 
         outputfilename = 'test/Test_Output.esdl'
 
         ulback = SQLESDL(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
-                           user=EnvSettings.db_user(), password=EnvSettings.db_password())
+                         user=EnvSettings.db_user(), password=EnvSettings.db_password())
 
-        success, error = ulback.db_to_esdl(esdl_filename=inputfilename,output_esdl_filename=outputfilename)
+        success, error = ulback.db_to_esdl(esdl_filename=inputfilename, output_esdl_filename=outputfilename)
         del ulback
         if not success:
             logger.error(f"Error executing Universal link: {error}")
@@ -105,8 +107,6 @@ class TEACOS(Model):
         logger.info("AIMMS has finished, collecting results...")
         return ModelRunInfo(model_run_id=model_run_id, state=ModelState.SUCCEEDED, )
 
-
-
     # @staticmethod
     # def monitor_aimms_progress(simulation_id, model_run_id):
     # pass
@@ -118,16 +118,16 @@ class TEACOS(Model):
         start_aimms_info = self.start_aimms_model(config, model_run_id)
         if start_aimms_info.state == ModelState.RUNNING:
             # monitor AIMMS progress
-            #monitor_essim_progress_info = TEACOS.monitor_essim_progress(simulation_id, model_run_id)
-            #if monitor_essim_progress_info.state == ModelState.ERROR:
+            # monitor_essim_progress_info = TEACOS.monitor_essim_progress(simulation_id, model_run_id)
+            # if monitor_essim_progress_info.state == ModelState.ERROR:
             #    return monitor_essim_progress_info
             return start_aimms_info
         else:
             return start_aimms_info
 
         ## Monitor KPI progress
-        #monitor_kpi_progress_info = TEACOS.monitor_kpi_progress(simulation_id, model_run_id)
-        #return monitor_kpi_progress_info
+        # monitor_kpi_progress_info = TEACOS.monitor_kpi_progress(simulation_id, model_run_id)
+        # return monitor_kpi_progress_info
 
     def run(self, model_run_id: str):
 
@@ -154,9 +154,9 @@ class TEACOS(Model):
                     reason=f"executor.futures._state: {executor.futures._state(model_run_id)}"
                 )
             else:
-                #print("executor.futures._state: ", executor.futures._state(model_run_id))   # FINISHED
+                # print("executor.futures._state: ", executor.futures._state(model_run_id))   # FINISHED
                 future = executor.futures.pop(model_run_id)
-                executor.futures.add(model_run_id, future)   # Put it back on again, so it can be retreived in results
+                executor.futures.add(model_run_id, future)  # Put it back on again, so it can be retreived in results
                 model_run_info = future.result()
                 if model_run_info.result is not None:
                     print('Model execution result:', model_run_info.result)
