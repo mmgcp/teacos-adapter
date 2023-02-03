@@ -64,6 +64,8 @@ while not succeeded:
             sleep(2)
     else:
         print("Endpoint /model/status not ok!")
+        result = res.json()
+        print(result)
         exit(1)
 
 # res = requests.get(api_endpoint + '/model/results/' + model_run_id)

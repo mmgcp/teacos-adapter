@@ -55,7 +55,7 @@ class SQLESDL:
                 end = datetime.datetime.now()
                 done = True
             else:
-                if counter == 120:
+                if counter > 60:
                     raise Exception("Logging failed")
                     exit(1)
                 time.sleep(1)
