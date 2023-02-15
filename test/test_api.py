@@ -24,8 +24,8 @@ else:
     exit(1)
 
 post_body = {
-  "input_esdl_file_path": "test/Tholen-simple v04-26kW_output.esdl",
-  "output_esdl_file_path": "test/output.esdl"
+  "input_esdl_file_path": "ESDLs/MapEditorMesoCasev04_ETM_handmatigSingleValue.esdl",
+  "output_esdl_file_path": "test/Output-MapEditorMesoCasev04_ETM_handmatigSingleValue.esdl"
 }
 
 res = requests.post(api_endpoint + '/model/initialize/' + model_run_id, json=post_body)

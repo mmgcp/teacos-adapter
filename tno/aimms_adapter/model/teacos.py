@@ -67,7 +67,7 @@ class TEACOS(Model):
             input_esdl = input_esdl_bytes.decode('utf-8')
             success, error = ul.esdl_str_to_db(input_esdl)
         else:
-            inputfilename = '..\..\test\Tholen-simple v04-26kW_output.esdl'
+            inputfilename = 'ESDLs\MapEditorMesoCase_run_2.esdl'
             print('ESDL:', inputfilename)
             success, error = ul.esdl_to_db(inputfilename)
 
@@ -95,7 +95,7 @@ class TEACOS(Model):
         if EnvSettings.minio_endpoint():
             success, error, output_esdl = ulback.db_to_esdl_str(input_esdl)
         else:
-            outputfilename = 'test/Test_Output.esdl'
+            outputfilename = 'test/Output-MapEditorMesoCase_run_2.esdl'
             success, error = ulback.db_to_esdl(esdl_filename=inputfilename, output_esdl_filename=outputfilename)
 
         del ulback
