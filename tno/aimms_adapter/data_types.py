@@ -21,6 +21,7 @@ class ModelState(str, Enum):
 class TeacosAdapterConfig:
     input_esdl_file_path: Optional[str] = None
     output_esdl_file_path: Optional[str] = None
+    base_path: Optional[str] = None
 
 
 @dataclass
