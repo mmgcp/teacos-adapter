@@ -12,6 +12,8 @@ import pandas as pd
 import datetime
 import time
 
+#from tno.shared.log import get_logger
+
 
 # if __name__ == "__main__":
 #     Schema = DB
@@ -44,6 +46,7 @@ class SQLESDL:
             counter += 1
             self.log_table = self.get_sql('SELECT * FROM ' + self.database_name + '.log_table;')
             if (len(self.log_table.index) > 0 and self.log_table.iloc[-1].log == 'Finished DB Write'):
+                print(f"Table entry: {self.log_table.iloc[-1].log}")
                 end = datetime.datetime.now()
                 done = True
             else:
@@ -104,6 +107,22 @@ class SQLESDL:
         return dir(self)
 
     def _generate_esdl(self, esh, context={'User': 'Test'}):
+        asset = esh.get_all_instances_of_type(esdl.Asset)
+        proj = []
+        for a in asset:
+            if a.state.value == 2:
+                #             kpiwasoptional = esdl.IntKPI(name = 'TEACOS_was_optional',value = 1)
+                #             a.kpi = kpiwasoptional
+                #             print(a.name, a.kpi.name)
+                proj.append(a.id)
+
+        df = self.Assets
+        df = df[df['id'].isin(proj)]
+        print(df.state)
+        for i, row in df.iterrows():
+            changables = esh.get_by_id(row.id)
+            print(changables.name, changables.state, row.state)
+            changables.state = row.state
 
         dfProducers = self.Producers
         Producers = esh.get_all_instances_of_type(esdl.Producer)
@@ -124,10 +143,8 @@ class SQLESDL:
         df3 = df2.where(df2.id_KPI.str.contains('TEACOS_Was_Optional_')).dropna()
 
         print(df3)
-        projname = []
         for i, row in df3.iterrows():
             Assetname = row.id_KPI.replace("TEACOS_Was_Optional_", '')
-            projname.append(Assetname)
             query = "SELECT * FROM " + self.database_name + ".Assets where `name` =  '" + Assetname.lstrip() + "';"
             AssetId = self.get_sql(query).id[0]
 
@@ -136,34 +153,9 @@ class SQLESDL:
             if not changables_kpi_list:
                 changables.KPIs = esdl.KPIs(id=str(uuid4()))
 
-            KPIsInFile = esh.get_all_instances_of_type(esdl.IntKPI)
-            KPIids = [i.id for i in KPIsInFile]
-            if row.id_KPI not in KPIids:
-                print("First Run")
-                kpiwasoptional = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=row.value_KPI)
-                changables.KPIs.kpi.append(kpiwasoptional)
-                print(kpiwasoptional, AssetId, 1)
-
-        asset = esh.get_all_instances_of_type(esdl.Asset)
-        proj = []
-        for a in asset:
-            if a.state.value == 2:
-                projname.append(a.name if a.name else None)
-                #             kpiwasoptional = esdl.IntKPI(name = 'TEACOS_was_optional',value = 1)
-                #             a.kpi = kpiwasoptional
-                #             print(a.name, a.kpi.name)
-                proj.append(a.id)
-            elif a.name in projname:
-                proj.append(a.id)
-
-        df = self.Assets
-        df = df[df['id'].isin(proj)]
-        print(df.state)
-        for i, row in df.iterrows():
-            changables = esh.get_by_id(row.id)
-            print(changables.name, changables.state, row.state)
-            changables.state = row.state
-
+            kpiwasoptional = esdl.IntKPI(id=row.id_KPI, name='1', value=1)
+            changables.KPIs.kpi.append(kpiwasoptional)
+            print(kpiwasoptional, AssetId, 1)
 
         df4 = df2.where(df2.id_KPI.str.contains('TEACOS_Inversted_W_')).dropna()
         print(df4)

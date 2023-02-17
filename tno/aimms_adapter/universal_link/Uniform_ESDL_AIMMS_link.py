@@ -969,28 +969,25 @@ class UniversalLink:
 #         for j in dirThing:
 #             print('   ',j)
 
-import os
-from dotenv import load_dotenv
+# conn.close()
 
-if __name__ == "__main__":
-    load_dotenv()  # load environmental variables such as database credentials and input file from the .env file (see .env-template)
-
-    Filename = os.getenv("ESDL_INPUT_FILENAME")
-    Outputfile = os.getenv("ESDL_OUTPUT_FILENAME")
-    Host = os.getenv("DATABASE_HOST")
-    DB = os.getenv("DATABASE_NAME")
-    User = os.getenv("DATABASE_USER")
-    PW = os.getenv("DATABASE_PASSWORD")
-
-    print("ESDL-AIMMS Universal link")
-    print(f"Config: db={DB}, host={Host}, inputFile={Filename}, outputFile={Outputfile}")
-    print(f'Processing ESDL...')
-
-    # use sqlAlchemy to connect to (any) database, instead of using direct connection
-    # this removes the pandas warning
-
-    ul = UniversalLink(Host, DB, User, PW)
-    inputfilename = 'ESDLs\MapEditorMesoCase_run_2.esdl'
-    print('ESDL:', inputfilename)
-    success, error = ul.esdl_to_db(inputfilename)
-
+# if __name__ == "__main__":
+#     load_dotenv()  # load environmental variables such as database credentials and input file from the .env file (see .env-template)
+#
+#     Filename = os.getenv("ESDL_INPUT_FILENAME")
+#     Outputfile = os.getenv("ESDL_OUTPUT_FILENAME")
+#     Host = os.getenv("DATABASE_HOST")
+#     DB = os.getenv("DATABASE_NAME")
+#     User = os.getenv("DATABASE_USER")
+#     PW = os.getenv("DATABASE_PASSWORD")
+#
+#     print("ESDL-AIMMS Universal link")
+#     print(f"Config: db={DB}, host={Host}, inputFile={Filename}, outputFile={Outputfile}")
+#     print(f'Processing ESDL...')
+#
+#     # use sqlAlchemy to connect to (any) database, instead of using direct connection
+#     # this removes the pandas warning
+#
+#     ul = UniversalLink(Host, DB, User, PW)
+#     print(ul.esdl_to_db(Filename))
+#

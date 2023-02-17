@@ -2,8 +2,8 @@ from time import sleep
 
 import requests
 
-api_endpoint = "http://localhost:9300"
-
+# api_endpoint = "http://localhost:9300"
+api_endpoint = "http://localhost:9204"
 
 res = requests.get(api_endpoint + '/status')
 if res.ok:
@@ -24,8 +24,9 @@ else:
     exit(1)
 
 post_body = {
-  "input_esdl_file_path": "ESDLs/MapEditorMesoCasev04_ETM_handmatigSingleValue.esdl",
-  "output_esdl_file_path": "test/Output-MapEditorMesoCasev04_ETM_handmatigSingleValue.esdl"
+  "input_esdl_file_path": "test/Tholen-simple v04-26kW_output.esdl",
+  "output_esdl_file_path": "test/output.esdl"
+  #"base_path": ""
 }
 
 res = requests.post(api_endpoint + '/model/initialize/' + model_run_id, json=post_body)
