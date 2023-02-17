@@ -25,7 +25,12 @@ class Model(ABC):
                 access_key=EnvSettings.minio_access_key(),
                 secret_key=EnvSettings.minio_secret_key()
             )
-            buckets = self.minio_client.list_buckets()
+            
+            try:
+                logger.info("Reading MinIO Buckets")
+                buckets = self.minio_client.list_buckets()
+            except Exception as e:
+                logger.info('An exception occurred: {}'.format(e))
 
             for bucket in buckets:
                 logger.info(f" - Bucket: {bucket.name}, created {bucket.creation_date}")
@@ -61,7 +66,15 @@ class Model(ABC):
                 reason="Error in Model.initialize(): model_run_id unknown"
             )
 
-    def load_from_minio(self, path):
+    def process_path(self, path: str, base_path: str) -> str:
+        if path[0] == '.':
+            return base_path + path.lstrip('./')
+        else:
+            return path.lstrip('./')
+
+    def load_from_minio(self, path, model_run_id):
+
+        path = self.process_path(path, self.model_run_dict[model_run_id].config.base_path)
         bucket = path.split("/")[0]
         rest_of_path = "/".join(path.split("/")[1:])
 
@@ -82,12 +95,17 @@ class Model(ABC):
             res = self.process_results(result)
             if res and self.minio_client:
                 content = BytesIO(bytes(res, 'ascii'))
-                path = self.model_run_dict[model_run_id].config.output_esdl_file_path
+                path = self.process_path(self.model_run_dict[model_run_id].config.output_esdl_file_path,
+                                         self.model_run_dict[model_run_id].config.base_path)
                 bucket = path.split("/")[0]
                 rest_of_path = "/".join(path.split("/")[1:])
 
                 if not self.minio_client.bucket_exists(bucket):
                     self.minio_client.make_bucket(bucket)
+
+                logger.info(f"Result Bucket: {bucket}")
+                logger.info(f"Result Rest of Path: {rest_of_path}")
+                logger.info(f"Result Data: {str(content.getvalue())}")
 
                 self.minio_client.put_object(bucket, rest_of_path, content, content.getbuffer().nbytes)
                 self.model_run_dict[model_run_id].result = {

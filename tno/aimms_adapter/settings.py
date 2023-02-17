@@ -49,6 +49,10 @@ class EnvSettings:
     def external_url():
         return os.getenv("EXTERNAL_URL", "")
 
+    @staticmethod
+    def adapter_id():
+        return os.getenv("ADAPTER_ID", "")
+
     # AIMMS config
     @staticmethod
     def aimms_exe_path():

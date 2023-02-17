@@ -6,7 +6,7 @@ services:
     image: mmvib-teacos-adapter:dev
     volumes:
       - .:/code
-    command: ["gunicorn", "--reload", "tno.aimms_adapter.main:app", "-t 300", "-w 1", "-b :9203"]
+    command: ["gunicorn", "--reload", "tno.aimms_adapter.main:app", "-t 300", "-w 1", "-b :9204"]
     ports:
       - "9204:9204"
     env_file:
@@ -29,7 +29,7 @@ services:
     image: adminer
     restart: always
     ports:
-      - 8080:8080
+      - 8081:8081
 
 volumes:
   mysql-storage:

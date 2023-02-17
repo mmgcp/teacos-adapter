@@ -50,7 +50,7 @@ def create_app(object_name):
         logger.info(f"Registering with MM Registry at {EnvSettings.registry_endpoint()}")
 
         # Register adapter to MM Registry
-        registry_data = {"uri": EnvSettings.external_url(), "used_workers": 0, "name": "AIMMS-adapter-opera",
+        registry_data = {"uri": EnvSettings.external_url(), "used_workers": 0, "name": EnvSettings.adapter_id(),
                          "owner": "TNO", "version": "1.0", "max_workers": 1}
 
         try:

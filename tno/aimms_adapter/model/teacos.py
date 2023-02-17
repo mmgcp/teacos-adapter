@@ -48,7 +48,7 @@ class TEACOS(Model):
         if EnvSettings.minio_endpoint():
             logger.info(f"Loading ESDL from Minio at {config.input_esdl_file_path}")
             try:
-                input_esdl_bytes = self.load_from_minio(config.input_esdl_file_path)
+                input_esdl_bytes = self.load_from_minio(config.input_esdl_file_path, model_run_id)
                 if input_esdl_bytes is None:
                     logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
                     return ModelRunInfo(
@@ -64,6 +64,7 @@ class TEACOS(Model):
                     reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
                 )
 
+            logger.info(f"ESDL Input File {str(input_esdl_bytes)}")
             input_esdl = input_esdl_bytes.decode('utf-8')
             success, error = ul.esdl_str_to_db(input_esdl)
         else:
@@ -194,7 +195,7 @@ class TEACOS(Model):
                 if model_run_info.state == ModelState.SUCCEEDED:
                     self.model_run_dict[model_run_id].result = model_run_info.result
 
-                    Model.store_result(self, model_run_id=model_run_id, result=model_run_info.result)
+                    # Model.store_result(self, model_run_id=model_run_id, result=model_run_info.result)
                 else:
                     self.model_run_dict[model_run_id].result = {}
 
