@@ -64,6 +64,9 @@ class Model(ABC):
     def initialize(self, model_run_id: str, config=None):
         if model_run_id in self.model_run_dict:
             self.model_run_dict[model_run_id].config = config
+            logger.info(f"DEBUG: model run id - {str(model_run_id)}")
+            logger.info(f"DEBUG: model config - {str(config)}")
+
             self.model_run_dict[model_run_id].state = ModelState.READY
             return ModelRunInfo(
                 state=self.model_run_dict[model_run_id].state,
@@ -84,7 +87,11 @@ class Model(ABC):
 
     def load_from_minio(self, path, model_run_id):
 
-        # TODO Process file path (if . use base path + post process to right format, if absolute - ignore adapter)
+        logger.info(f"Model Run ID: {str(model_run_id)}")
+        logger.info(f"Model Path: {str(path)}")
+        logger.info(f"Model ESDL IN Path: {str(self.model_run_dict[model_run_id].config.input_esdl_file_path)}")
+        logger.info(f"Model ESDL IN Base Path: {str(self.model_run_dict[model_run_id].config.base_path)}")
+
         path = self.process_path(path, self.model_run_dict[model_run_id].config.base_path)
 
         bucket = path.split("/")[0]
@@ -98,17 +105,24 @@ class Model(ABC):
             logger.error(f"Failed to retrieve from Minio: bucket={bucket}, path={rest_of_path}")
             return None
 
-    @abstractmethod
     def process_results(self, result):
-        pass
+        return result.replace('\\n','').replace('\\"',"\"").replace("\'","'").replace("\\","").strip('\"')
 
     def store_result(self, model_run_id: str, result):
 
-        # TODO Process file path (if . use base path + post process to right format, if absolute - ignore adapter)
         if model_run_id in self.model_run_dict:
             res = self.process_results(result)
             if res and self.minio_client:
-                content = BytesIO(bytes(res, 'ascii'))
+
+                out = res.replace('\\n','').replace('\\"',"\"").replace("\'","'").replace("\\","").strip('\"')
+                logger.info(f"ESDL File Content After Processing:")
+                logger.info(out)
+                content = BytesIO(bytes(out, 'ascii'))
+
+                logger.info(f"Model Run ID: {str(model_run_id)}")
+                logger.info(f"Model ESDL OUT Path: {str(self.model_run_dict[model_run_id].config.output_esdl_file_path)}")
+                logger.info(f"Model ESDL OUT Base Path: {str(self.model_run_dict[model_run_id].config.base_path)}")
+
                 # path = self.model_run_dict[model_run_id].config.output_esdl_file_path
                 path = self.process_path(self.model_run_dict[model_run_id].config.output_esdl_file_path,
                                          self.model_run_dict[model_run_id].config.base_path)
@@ -121,7 +135,7 @@ class Model(ABC):
                 logger.info(f"--- STORING RESULT IN ---")
                 logger.info(f"Bucket: {bucket}")
                 logger.info(f"Rest of Path: {rest_of_path}")
-                logger.info(f"Data: {str(content.getvalue())}")
+                #logger.info(f"Data: {str(content.getvalue())}")
                 logger.info(f"--- STORING RESULT IN ---")
 
                 self.minio_client.put_object(bucket, rest_of_path, content, content.getbuffer().nbytes)

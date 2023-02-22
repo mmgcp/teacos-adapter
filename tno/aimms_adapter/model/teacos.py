@@ -64,7 +64,7 @@ class TEACOS(Model):
                     reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
                 )
 
-            logger.info(f"ESDL Input File {str(input_esdl_bytes)}")
+            #logger.info(f"ESDL Input File {str(input_esdl_bytes)}")
             input_esdl = input_esdl_bytes.decode('utf-8')
             success, error = ul.esdl_str_to_db(input_esdl)
         else:

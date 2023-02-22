@@ -11,6 +11,7 @@ import pymysql
 import pandas as pd
 import datetime
 import time
+from tno.shared.log import get_logger
 
 #from tno.shared.log import get_logger
 
@@ -26,6 +27,7 @@ import time
 
 # In[8]:
 
+logger = get_logger(__name__)
 
 class SQLESDL:
     def __init__(self, host: str, database: str, user: str, password: str):
@@ -90,7 +92,6 @@ class SQLESDL:
         esh = EnergySystemHandler()
         try:
             esh.load_from_string(esdl_str_in)
-            print(f'Parsing Results...')
             esdl_str_out = self.generate_esdl_str(esh)
             return True, 'Ok', esdl_str_out
         except Exception as e:
