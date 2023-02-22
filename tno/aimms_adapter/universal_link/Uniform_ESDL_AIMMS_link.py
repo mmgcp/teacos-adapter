@@ -975,22 +975,15 @@ from dotenv import load_dotenv
 if __name__ == "__main__":
     load_dotenv()  # load environmental variables such as database credentials and input file from the .env file (see .env-template)
 
-    Filename = os.getenv("ESDL_INPUT_FILENAME")
-    Outputfile = os.getenv("ESDL_OUTPUT_FILENAME")
-    Host = os.getenv("DATABASE_HOST")
-    DB = os.getenv("DATABASE_NAME")
-    User = os.getenv("DATABASE_USER")
-    PW = os.getenv("DATABASE_PASSWORD")
+    from tno.aimms_adapter.settings import EnvSettings
 
     print("ESDL-AIMMS Universal link")
-    print(f"Config: db={DB}, host={Host}, inputFile={Filename}, outputFile={Outputfile}")
     print(f'Processing ESDL...')
 
     # use sqlAlchemy to connect to (any) database, instead of using direct connection
     # this removes the pandas warning
 
-    ul = UniversalLink(Host, DB, User, PW)
-    inputfilename = 'ESDLs\MapEditorMesoCase_run_2.esdl'
-    print('ESDL:', inputfilename)
+    ul = UniversalLink( EnvSettings.db_host(),  EnvSettings.db_name(), EnvSettings.db_user(), EnvSettings.db_password())
+    inputfilename = "ESDLs/Tholen4-AANGEPAST.esdl"
+    print('ESDL:', "...", inputfilename)
     success, error = ul.esdl_to_db(inputfilename)
-

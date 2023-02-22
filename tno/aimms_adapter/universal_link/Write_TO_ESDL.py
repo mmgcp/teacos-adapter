@@ -118,7 +118,6 @@ class SQLESDL:
                 if (type(dfField) == pd.Series):
                     p.multiplier = float(dfField.multiplier)
 
-                print(p.id, p.multiplier)
 
         df2 = self.KPIs
         df3 = df2.where(df2.id_KPI.str.contains('TEACOS_Was_Optional_')).dropna()
@@ -139,8 +138,8 @@ class SQLESDL:
             KPIsInFile = esh.get_all_instances_of_type(esdl.IntKPI)
             KPIids = [i.id for i in KPIsInFile]
             if row.id_KPI not in KPIids:
-                print("First Run")
-                kpiwasoptional = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=row.value_KPI)
+                print("First Run", row.value_KPI)
+                kpiwasoptional = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI))
                 changables.KPIs.kpi.append(kpiwasoptional)
                 print(kpiwasoptional, AssetId, 1)
 
@@ -176,9 +175,14 @@ class SQLESDL:
             changables_kpi_list = changables.KPIs
             if not changables_kpi_list:
                 changables.KPIs = esdl.KPIs(id=str(uuid4()))
+            print(row.value_KPI)
 
-            kpiConstraints = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI))
-            changables.KPIs.kpi.append(kpiConstraints)
+            if row.id_KPI in KPIids:
+                kpi = [i for i in KPIsInFile if i.id == row.id_KPI]
+                kpi[0].value = int(row.value_KPI)
+            else:
+                kpiConstraints = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI))
+                changables.KPIs.kpi.append(kpiConstraints)
 
     def generate_esdl(self, esh, outputfile, context={'User': 'Test'}):
         self._generate_esdl(esh, context)
