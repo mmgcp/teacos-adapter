@@ -104,19 +104,19 @@ class SQLESDL:
         return dir(self)
 
     def _generate_esdl(self, esh, context={'User': 'Test'}):
-
-        dfProducers = self.Producers
-        Producers = esh.get_all_instances_of_type(esdl.Producer)
-        for p in Producers:
-            p.power = float(dfProducers.loc[dfProducers["id"] == p.id].power)
-
-        dfAssetProfiles = self.AssetProfiles
-        AssetProfiles = esh.get_all_instances_of_type(esdl.GenericProfile)
-        for p in AssetProfiles:
-            if type(p) == esdl.InfluxDBProfile:
-                dfField = dfAssetProfiles.loc[dfAssetProfiles["field"] == p.field]
-                if (type(dfField) == pd.Series):
-                    p.multiplier = float(dfField.multiplier)
+        if hasattr(self, 'Producers'):
+            dfProducers = self.Producers
+            Producers = esh.get_all_instances_of_type(esdl.Producer)
+            for p in Producers:
+                p.power = float(dfProducers.loc[dfProducers["id"] == p.id].power)
+        if hasattr(self, 'Producers'):
+            dfAssetProfiles = self.AssetProfiles
+            AssetProfiles = esh.get_all_instances_of_type(esdl.GenericProfile)
+            for p in AssetProfiles:
+                if type(p) == esdl.InfluxDBProfile:
+                    dfField = dfAssetProfiles.loc[dfAssetProfiles["field"] == p.field]
+                    if (type(dfField) == pd.Series):
+                        p.multiplier = float(dfField.multiplier)
 
 
         df2 = self.KPIs
@@ -155,13 +155,14 @@ class SQLESDL:
             elif a.name in projname:
                 proj.append(a.id)
 
-        df = self.Assets
-        df = df[df['id'].isin(proj)]
-        print(df.state)
-        for i, row in df.iterrows():
-            changables = esh.get_by_id(row.id)
-            print(changables.name, changables.state, row.state)
-            changables.state = row.state
+        if hasattr(self, 'Assets'):
+            df = self.Assets
+            df = df[df['id'].isin(proj)]
+            print(df.state)
+            for i, row in df.iterrows():
+                changables = esh.get_by_id(row.id)
+                print(changables.name, changables.state, row.state)
+                changables.state = row.state
 
 
         df4 = df2.where(df2.id_KPI.str.contains('TEACOS_Inversted_W_')).dropna()
