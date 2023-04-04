@@ -44,9 +44,15 @@ class SQLESDL:
         start = datetime.datetime.now()
         done = False
         counter = 0;
+
+        logger.info(f"--- STARTING ---")
+
         while done == False:
             counter += 1
             self.log_table = self.get_sql('SELECT * FROM ' + self.database_name + '.log_table;')
+#            logger.info(f"--- {counter} ---")
+#            if len(self.log_table.index) > 0:
+#                logger.info(f"Current Log Entry: {self.log_table.iloc[-1].log}")
             if (len(self.log_table.index) > 0 and self.log_table.iloc[-1].log == 'Finished DB Write'):
                 print(f"Table entry: {self.log_table.iloc[-1].log}")
                 end = datetime.datetime.now()
@@ -108,35 +114,20 @@ class SQLESDL:
         return dir(self)
 
     def _generate_esdl(self, esh, context={'User': 'Test'}):
-        asset = esh.get_all_instances_of_type(esdl.Asset)
-        proj = []
-        for a in asset:
-            if a.state.value == 2:
-                #             kpiwasoptional = esdl.IntKPI(name = 'TEACOS_was_optional',value = 1)
-                #             a.kpi = kpiwasoptional
-                #             print(a.name, a.kpi.name)
-                proj.append(a.id)
 
-        df = self.Assets
-        df = df[df['id'].isin(proj)]
-        print(df.state)
-        for i, row in df.iterrows():
-            changables = esh.get_by_id(row.id)
-            print(changables.name, changables.state, row.state)
-            changables.state = row.state
-
-        dfProducers = self.Producers
-        Producers = esh.get_all_instances_of_type(esdl.Producer)
-        for p in Producers:
-            p.power = float(dfProducers.loc[dfProducers["id"] == p.id].power)
-
-        dfAssetProfiles = self.AssetProfiles
-        AssetProfiles = esh.get_all_instances_of_type(esdl.GenericProfile)
-        for p in AssetProfiles:
-            if type(p) == esdl.InfluxDBProfile:
-                dfField = dfAssetProfiles.loc[dfAssetProfiles["field"] == p.field]
-                if (type(dfField) == pd.Series):
-                    p.multiplier = float(dfField.multiplier)
+        if hasattr(self, 'Producers'):
+            dfProducers = self.Producers
+            Producers = esh.get_all_instances_of_type(esdl.Producer)
+            for p in Producers:
+                p.power = float(dfProducers.loc[dfProducers["id"] == p.id].power)
+        if hasattr(self, 'AssetProfiles'):
+            dfAssetProfiles = self.AssetProfiles
+            AssetProfiles = esh.get_all_instances_of_type(esdl.GenericProfile)
+            for p in AssetProfiles:
+                if type(p) == esdl.InfluxDBProfile:
+                    dfField = dfAssetProfiles.loc[dfAssetProfiles["field"] == p.field]
+                    if (type(dfField) == pd.Series):
+                        p.multiplier = float(dfField.multiplier)
 
                 print(p.id, p.multiplier)
 
@@ -144,8 +135,10 @@ class SQLESDL:
         df3 = df2.where(df2.id_KPI.str.contains('TEACOS_Was_Optional_')).dropna()
 
         print(df3)
+        projname = []
         for i, row in df3.iterrows():
             Assetname = row.id_KPI.replace("TEACOS_Was_Optional_", '')
+            projname.append(Assetname)
             query = "SELECT * FROM " + self.database_name + ".Assets where `name` =  '" + Assetname.lstrip() + "';"
             AssetId = self.get_sql(query).id[0]
 
@@ -154,9 +147,34 @@ class SQLESDL:
             if not changables_kpi_list:
                 changables.KPIs = esdl.KPIs(id=str(uuid4()))
 
-            kpiwasoptional = esdl.IntKPI(id=row.id_KPI, name='1', value=1)
-            changables.KPIs.kpi.append(kpiwasoptional)
-            print(kpiwasoptional, AssetId, 1)
+            KPIsInFile = esh.get_all_instances_of_type(esdl.IntKPI)
+            KPIids = [i.id for i in KPIsInFile]
+            if row.id_KPI not in KPIids:
+                print("First Run")
+                kpiwasoptional = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI))
+                changables.KPIs.kpi.append(kpiwasoptional)
+                print(kpiwasoptional, AssetId, 1)
+
+        asset = esh.get_all_instances_of_type(esdl.Asset)
+        proj = []
+        for a in asset:
+            if a.state.value == 2:
+                projname.append(a.name if a.name else None)
+                #             kpiwasoptional = esdl.IntKPI(name = 'TEACOS_was_optional',value = 1)
+                #             a.kpi = kpiwasoptional
+                #             print(a.name, a.kpi.name)
+                proj.append(a.id)
+            elif a.name in projname:
+                proj.append(a.id)
+
+        if hasattr(self, 'Assets'):
+            df = self.Assets
+            df = df[df['id'].isin(proj)]
+            print(df.state)
+            for i, row in df.iterrows():
+                changables = esh.get_by_id(row.id)
+                print(changables.name, changables.state, row.state)
+                changables.state = row.state
 
         df4 = df2.where(df2.id_KPI.str.contains('TEACOS_Inversted_W_')).dropna()
         print(df4)
@@ -170,8 +188,14 @@ class SQLESDL:
             if not changables_kpi_list:
                 changables.KPIs = esdl.KPIs(id=str(uuid4()))
 
-            kpiConstraints = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI))
-            changables.KPIs.kpi.append(kpiConstraints)
+            KPIsInFile = esh.get_all_instances_of_type(esdl.IntKPI)
+            KPIids = [i.id for i in KPIsInFile]
+            if row.id_KPI in KPIids:
+                kpi = [i for i in KPIsInFile if i.id == row.id_KPI]
+                kpi[0].value = int(row.value_KPI)
+            else:
+                kpiConstraints = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI))
+                changables.KPIs.kpi.append(kpiConstraints)
 
     def generate_esdl(self, esh, outputfile, context={'User': 'Test'}):
         self._generate_esdl(esh, context)
