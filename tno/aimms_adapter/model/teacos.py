@@ -69,7 +69,7 @@ class TEACOS(Model):
             success, error = ul.esdl_str_to_db(input_esdl)
         else:
             path = TeacosAdapterConfig.input_esdl_file_path
-            inputfilename = "ESDLs/Output-EPS - edit2.esdl"
+            inputfilename = "ESDLs/Tholen-InputApril.esdl"
             print('ESDL:', path, "..." ,inputfilename)
             success, error = ul.esdl_to_db(inputfilename)
 
@@ -98,7 +98,7 @@ class TEACOS(Model):
             success, error, output_esdl = ulback.db_to_esdl_str(input_esdl)
         else:
             path = TeacosAdapterConfig.input_esdl_file_path
-            outputfilename = "ESDLs/Output2-EPS - edit2.esdl"
+            outputfilename = "ESDLs/Output-Tholen-InputApril.esdl"
             print('Output-ESDL:', path, "...", outputfilename)
             success, error = ulback.db_to_esdl(esdl_filename=inputfilename, output_esdl_filename=outputfilename)
 
