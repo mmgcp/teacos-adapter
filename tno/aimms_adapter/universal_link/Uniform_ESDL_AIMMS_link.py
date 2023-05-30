@@ -11,8 +11,6 @@
 # two python packages 'pyesdl' and 'pymysql' made by respectively TNO and Mysql to transform an esdl file to SQL
 # tables that can be read by AIMMS.
 
-
-
 from pyecore.ecore import EEnum, EEnumLiteral
 from pyecore.valuecontainer import EOrderedSet
 from sqlalchemy import create_engine
@@ -21,12 +19,6 @@ from typing import Union, Tuple
 from esdl.esdl_handler import EnergySystemHandler
 from esdl import esdl
 import pandas as pd
-
-# ### Simple function that runs an SQL command
-#
-
-# In[3]:
-
 
 '''
 Converts a list of string to a string or an enum to its name
@@ -46,6 +38,10 @@ def convert_to_string(esdl_attribute_value) -> str:
 
 
 class UniversalLink:
+    '''
+    Initiates main class and connects to database using host/database/user/password
+    '''
+
     def __init__(self, host: str, database: str, user: str, password: str):
         print("ESDL-AIMMS Universal link starting...")
         # use sqlAlchemy to connect to (any) database, instead of using direct connection
@@ -62,9 +58,12 @@ class UniversalLink:
         self.conn.close()
         self.engine.dispose()
 
+    '''
+    Main function that loads esh + file from database, runs the core function parse_esdl and catches errors
+    '''
+
     def esdl_to_db(self, esdl_filename) -> Tuple[bool, str]:
         """
-
         :param esdl_filename: file to convert to database
         :return: tuple (success (True/False), error message)
         """
@@ -78,36 +77,35 @@ class UniversalLink:
         except Exception as e:
             return False, str(e)
 
-    def esdl_str_to_db(self, esdl_str) -> Tuple[bool, str]:
-        print(f'Processing ESDL...')
-        esh = EnergySystemHandler()
-        try:
-            esh.load_from_string(esdl_str)
-            print(f'Parsing ESDL...')
-            self.parse_esdl(esh)
-            return True, 'Ok'
-        except Exception as e:
-            return False, str(e)
+    '''
+    Auxiliary function that reads from (newly created) sql file on the database using pandas
+    '''
 
     def get_sql(self, query):
+        """
+        :param query: SQL-related command
+        :return: result: dataframe with SQL file related information
+        """
         try:
             result = pd.read_sql(query, self.database_url)
             return result
         except pymysql.Error as e:
             print("Error: unable to fetch data %d: %s" % (e.args[0], e.args[1]))
 
-    def create_AIMMS_sql(self, DB, SetofTables, SetofAttributes):
+    '''
+    Creates SQL database (deletes old database if name already exists)
+    '''
 
+    def create_AIMMS_sql(self, DB, SetofTables, SetofAttributes):
+        """
+        :param DB: database name
+        SetofTables: list of table names (see parse_esdl)
+        SetofAttributes: list of tuples, each tuple containing the attributes of the corresponding table in SetofTables
+        """
         print(f"Removing and recreate database {DB}")
         self.cursor.execute('DROP DATABASE IF EXISTS ' + DB + ';')
         self.cursor.execute('create database ' + DB + ';')
         self.conn.select_db(DB)
-
-        #     query = "SELECT concat('DROP TABLE IF EXISTS `', table_name, '`;') FROM information_schema.tables WHERE table_schema = '"+ DB + "';"
-        #     cursor.execute(query)
-        #     Tables = cursor.fetchall()
-        #     for i in Tables:
-        #         cursor.execute(i[0])
 
         try:
             query = []
@@ -134,7 +132,16 @@ class UniversalLink:
         except pymysql.Error as e:
             print("Error: unable to create table %d: %s" % (e.args[0], e.args[1]))
 
+    '''
+    Writes data to corresponding table in the SQL file
+    '''
+
     def write_table_to_Sql(self, DB, Sheet, val):
+        """
+        :param DB: database name
+        Sheet: Table name (i.e. SetofTables[i])
+        val: Data to be written (i.e. SetofValues[i])
+        """
         # Build query
         numofcol = self.get_sql(
             "SELECT COUNT(*) as NumberofCol from INFORMATION_SCHEMA.COLUMNS where table_schema = '" + DB + "' and table_name = '" + Sheet + "';")
@@ -147,8 +154,16 @@ class UniversalLink:
         print('INSERT ' + Sheet + ' COMPLETE')
         self.conn.commit()
 
-    def ExtractDataESDL(self, TableName, Instances, SetofAttributes, SetofTables, SetofValues):
+    '''
+    Reads and saves data for certain (right format) esdl instances
+    '''
 
+    def ExtractDataESDL(self, TableName, Instances, SetofAttributes, SetofTables, SetofValues):
+        """
+        :param Tablename: string with table name
+        Instances: instance to read from (output of esdl.get_all_instances_of_type)
+        SetofTables/SetofAttributes/SetofValues: lists to which to append extracted data
+        """
         if Instances == []:
             return
         valInstance = []
@@ -179,9 +194,29 @@ class UniversalLink:
         SetofTables.append(TableName)
         SetofValues.append(valInstance)
 
+    '''
+    Core function which extracts data from ESDL file, stores relevant data in SetofValues/SetofAttributes/SetofTables
+    and creates and writes to a new AIMMS-friendly SQL file 
+
+    Since most tables have different properties and only specific data is required, each table is treated seperately. 
+    For each desired table this function:
+    i) Opens the corresponding instance from ESDL
+    ii) Reads the desired attributes and stores them in the temporary list "valXXX"
+    iii) Checks if the instance exists/is non-empty and if so:
+    iv) Stores the table name to SetofTables, the attribute names (formatted for SQL) to SetofAttributes and the data to SetofValues
+
+    The following 25 tables are currently read: 
+    Assets, Producers, Consumers, AssetProfiles, Conversions, 
+    Transports, Storages, Arcs, Processes, Carriers, EnergyCarriers, GasCommodities, 
+    ElectricityCommodities, ElectricityCommodities, EnergyCommodities, Commodities, 
+    Matters, Buildings, KPIs, KPIsBuildings, KPIsAssets, CostInformations, Constraints, 
+    CarrierQuantityAndUnitTypes, AssetQuantityAndUnitTypes
+    '''
+
     def parse_esdl(self, esh, event=None, context=None):
-        # xml_string = esh.to_string()
-        # print(xml_string)
+        """
+        :param esh: input given by esh.load_file(esdl_filename)
+        """
 
         SetofTables = []
         SetofAttributes = []
@@ -225,7 +260,6 @@ class UniversalLink:
             else:
                 tup = tup + (None, None)
             valAssets.append(tup)
-
         if (Assets != []):
             SetofTables.append('Assets')
             SetofAttributes.append(('id varchar(100) Primary key',
@@ -276,7 +310,6 @@ class UniversalLink:
         valConsumers = [(n.id, n.eClass.name, n.name, n.consType,
                          convert_to_string(n.type) if hasattr(n, 'type') else None, n.power)
                         for n in Consumers]
-
         if (Consumers != []):
             SetofAttributes.append(('id varchar(100)  Primary Key',
                                     'esdlType varchar(100)',
@@ -423,7 +456,6 @@ class UniversalLink:
                 if a.carrier is None:
                     print(
                         f'Note: Arc {a.id} with name {a.name} of assets {a.energyasset.name} misses attribute (carrier)')
-
         if len(Arcs) > 0:
             SetofAttributes.append(('Node1_name varchar(1500)',
                                     'Node1_id varchar(100)',
@@ -439,86 +471,6 @@ class UniversalLink:
                                     'CostDummy varchar(100)'))
             SetofTables.append('Arcs')
             SetofValues.append(valArcs)
-        #     valArcs = [(a.energyasset.name,
-        #                 a.energyasset.id,
-        #                 a.name,
-        #                 a.id,
-        #                 b.energyasset.name,
-        #                 b.energyasset.id,
-        #                 b.name,
-        #                 b.id,
-        #                 a.carrier.name,
-        #                 a.carrier.id,
-        #                 a.maxPower,
-        #                 b.maxPower,
-        #                 a.simultaneousPower,
-        #                 b.simultaneousPower,
-        #                 1)
-        #                  for a in Arcs for b in a.connectedTo]
-        #     SetofAttributes.append(('Node1_name varchar(1500)',
-        #                             'Node1_id varchar(100)',
-        #                             'Outport_name varchar(1500)',
-        #                             'Outport_id varchar(100)',
-        #                             'Node2_name varchar(1500)',
-        #                             'Node2_id varchar(100)',
-        #                             'Inport_name varchar(1500)',
-        #                             'Inport_id varchar(100)',
-        #                             'PRIMARY KEY (Node1_id, Node2_id)',
-        #                             'carrier varchar(100)',
-        #                             'carrier_id varchar(100)',
-        #                             'maxPower_Out varchar(100)',
-        #                             'maxPower_In varchar(100)',
-        #                             'simultaneousPower_Out varchar(100)',
-        #                             'simultaneousPower_In varchar(100)',
-        #                             'CostDummy varchar(100)'))
-        #     SetofTables.append('Arcs')
-        #     SetofValues.append(valArcs)
-
-        #     Processes = esh.get_all_instances_of_type(esdl.InputOutputRelation)
-        # #     Processes = [a.behaviour for a in Conversions]
-        # #     print(Processes)
-        #     valProcesses = []
-        #     for a in Processes:
-        #         for i in a.mainPortRelation:
-        #             if type(i.port) == esdl.InPort:
-        #                 itype = 'In'
-        #             else:  itype = 'Out'
-        #             tup = (a.mainPort.id, a.name, a.mainPortQuantityAndUnit, a.id, itype)
-        #             for j in dir(i):
-        #                 k = getattr(i, j)
-        #                 if (type(k) == type(None) or type(k) == float):
-        #                     tup += (k,)
-        #                     print(j,k)
-        #                 else:
-        #                     tup += (k.id,)
-        #             valProcesses.append(tup)
-        #     if(Processes != []):
-        #         SetofAttributes.append(('mainPort  varchar(100)',
-        #                                 'name  varchar(100)',
-        #                                 'mainPortQuantityAndUnit  varchar(100)',
-        #                                 'id  varchar(100)',
-        #                                 'portType varchar(100)',
-        #                                 'port varchar(100)',
-        #                                 'quantityAndUnit varchar(100)',
-        #                                 'ratio varchar(100)'))
-        #         SetofTables.append('Processes')
-        #         SetofValues.append(valProcesses)
-
-        # valArcs=[]
-        #     for a in Arcs:
-        #         for b in a.connectedTo:
-        #             if (a.carrier != None):
-        #                 valArcs.append(a.energyasset.name,
-        #                                a.energyasset.id,
-        #                                a.name,
-        #                                a.id,
-        #                                b.energyasset.name,
-        #                                b.energyasset.id,
-        #                                b.name,
-        #                                b.id,
-        #                                a.carrier.name,
-        #                                a.carrier.id,
-        #                                1)
 
         Processes = Conversions
         valProcesses = []
@@ -545,9 +497,6 @@ class UniversalLink:
                         btype = 'In'
                     else:
                         btype = 'Out'
-                    # print(mainport)
-                    # print(mainport.carrier)
-                    # print(b)
                     if (mainport.carrier != None):
                         tup = (
                             'null', mainport.id, mainport.carrier.id, atype, b.id, btype, a.id, a.name, ratio,
@@ -556,7 +505,6 @@ class UniversalLink:
                         valProcesses.append(tup)
                     else:
                         print(f'Note that process {b.id} misses attribute (carrier)')
-
         if (valProcesses != []):
             SetofAttributes.append(('quantityAndUnit varchar(100)',
                                     'mainPortId varchar(100)',
@@ -627,30 +575,7 @@ class UniversalLink:
         Matters = esh.get_all_instances_of_type(esdl.Matter)
         if (Matters != []):
             self.ExtractDataESDL('Matters', Matters, SetofAttributes, SetofTables, SetofValues)
-        #     Matters = esh.get_all_instances_of_type(esdl.Matter)
-        #     valMatters =[]
-        #     for m in Matters:
-        #         temp = tuple()
-        #         for d in dir(m):
-        #             e = getattr(m, d)
-        #             if e == None:
-        #                 temp+= (None,)
-        #             else:
-        #                 temp+=(e,)
-        #         valMatters.append(temp)
 
-        #     MatterAttr = tuple()
-        #     for d in dir(Matters[0]):
-        #         if d == 'id':
-        #             MatterAttr += (d  + ' varchar(100) Primary Key',)
-        #         else:
-        #             MatterAttr += (d  + ' varchar(100)',)
-        #     SetofAttributes.append(MatterAttr)
-        #     SetofTables.append('Matters')
-        #     SetofValues.append(valMatters)
-
-        #     Buildings = esh.get_all_instances_of_type(esdl.Building)
-        #     ExtractDataESDL('Buildings',Buildings, SetofAttributes, SetofTables, SetofValues)
         Buildings = esh.get_all_instances_of_type(esdl.Building)
         valBuildings = [(a.id,
                          a.floorArea,
@@ -690,14 +615,6 @@ class UniversalLink:
                     k.name,
                     k.value if type(k) in [esdl.IntKPI, esdl.DoubleKPI, esdl.StringKPI] else None)
                    for k in KPIs]
-        # for k in KPIs:
-        #     if type(k) in [esdl.IntKPI, esdl.DoubleKPI, esdl.StringKPI]:
-        #         print(type(k))
-        #         valKPIs.append((k.id,k.name,k.value))
-        #     elif type(k) == esdl.DistributionKPI:
-        #         valKPIs.append((k.id, k.name, 'null'))
-        #     else:
-        #         print("KPI type: ", type(k), " is not supported")
         SetofAttributes.append(('id_KPI varchar(100)',
                                 'name_KPI varchar(100)',
                                 'value_KPI varchar(100)'))
@@ -719,7 +636,6 @@ class UniversalLink:
                                 b.id,
                                 b.name)
                         valKPIsBuildings.append(temp)
-
         if (valKPIsBuildings != []):
             SetofAttributes.append(('id_KPI varchar(100)',
                                     'name_KPI varchar(100)',
@@ -744,7 +660,6 @@ class UniversalLink:
                                 b.id,
                                 b.name)
                         valKPIsAssets.append(temp)
-
             SetofAttributes.append(('id_KPI varchar(100)',
                                     'name_KPI varchar(100)',
                                     'value_KPI varchar(100)',
@@ -754,63 +669,6 @@ class UniversalLink:
             SetofTables.append('KPIsAssets')
             SetofValues.append(valKPIsAssets)
 
-        CostInformations = esh.get_all_instances_of_type(esdl.CostInformation)
-        valCostInformations = []
-        for a in Assets:
-            c = a.costInformation
-            if (a.costInformation):
-                temp = (a.id, a.name)
-                for d in dir(c):
-                    e = getattr(c, d)
-                    if e == None or type(e) == str:
-                        temp += (None,)
-                    else:
-                        temp += (e.value,)
-                valCostInformations.append(temp)
-        CostInformationsAtt = ('AssetId varchar(100)', 'Assetname varchar(1500)')
-        if (CostInformations != []):
-            for d in dir(CostInformations[0]):
-                CostInformationsAtt += (d + ' varchar(100)',)
-            SetofAttributes.append(CostInformationsAtt)
-            SetofTables.append('CostInformations')
-            SetofValues.append(valCostInformations)
-
-        Constraints = []
-        valConstraints = []
-        for a in Assets:
-            for b in a.constraint:
-                Constraints.append(b)
-                # print(type(b.attributeReference))
-                temp = (a.id, a.name, b.id, b.name, b.attributeReference)
-                c = b.range
-                if (c):
-                    temp += (c.id, c.name, c.minValue, c.maxValue)
-                else:
-                    temp += (None, None, None, None)
-
-                valConstraints.append(temp)
-
-        #             ('NodeId varchar(100)',
-        #                       'Nodename varchar(1500)',
-        #                       ' varchar(100)',
-        #                       'Constraintname varchar(1500)',
-        #                       'ConstraintAttribute varchar(100)',
-        #                       'RangeId varchar(100)',
-        #                       'Rangename varchar(1500)',
-        #                       'minValue varchar(100)',
-        #                       'maxValue varchar(100)')
-        if (Constraints != []):
-            SetofAttributes.append(('Node_Id varchar(100)',
-                                    'Node_name varchar(1500)',
-                                    'Constraint_Id varchar(100)',
-                                    'Constraint_name varchar(1500)',
-                                    'Constraint_Attribute varchar(100)',
-                                    'range_Id varchar(100)',
-                                    'range_name varchar(1500)',
-                                    'min varchar(100)',
-                                    'max varchar(100)'))
-            SetofTables.append('Constraints')
-            SetofValues.append(valConstraints)
 
         QuantityAndUnitTypes = esh.get_all_instances_of_type(esdl.QuantityAndUnitType)
         valCarrierQuantityAndUnitTypes = []
@@ -840,7 +698,6 @@ class UniversalLink:
                             temp += (a,)
                     valEnergyContentUnit.append(temp)
                     valCarrierQuantityAndUnitTypes.append(temp)
-
         CarrierQuantityAndUnitTypesAtt = (
             'CarrierId varchar(100)', 'CarrierDescription varchar(100)', 'type varchar(100)')
         if (QuantityAndUnitTypes != []):
@@ -851,7 +708,6 @@ class UniversalLink:
             SetofValues.append(valCarrierQuantityAndUnitTypes)
 
         valAssetQuantityAndUnitTypes = []
-        valAssetQuantityAndUnitReferences = []
         valAssetQuantityAndUnitInfluxDB = []
 
         QuantityAndUnitReferences = esh.get_all_instances_of_type(esdl.QuantityAndUnitReference)
@@ -873,7 +729,6 @@ class UniversalLink:
                         valAssetQuantityAndUnitInfluxDB.append(temp)
                         temp = (a.id, a.name, p.id)
                         pr = pr.profileQuantityAndUnit
-
                     if (type(pr) == esdl.QuantityAndUnitType):
                         for q in dir(QuantityAndUnitTypes[0]):
                             e = getattr(pr, q)
@@ -884,7 +739,6 @@ class UniversalLink:
                         valAssetQuantityAndUnitTypes.append(temp)
                     else:
                         print(f"Profile type {type(pr)} is not supported")
-
         if (len(QuantityAndUnitTypes) > 0):
             AssetQuantityAndUnitTypesAtt = ['asset_id varchar(100)', 'asset_name varchar(100)', 'port_id varchar(100)']
             for d in dir(QuantityAndUnitTypes[0]):
@@ -906,68 +760,100 @@ class UniversalLink:
             SetofTables.append('AssetQuantityAndUnitInfluxDB')
             SetofValues.append(valAssetQuantityAndUnitInfluxDB)
 
-        #     GenericProfiles = esh.get_all_instances_of_type(esdl.GenericProfile)
-        #     valGenericProfiles = [(p.profileType,
-        #                            p.profileQuantityAndUnit,
-        #                            p.name,
-        #                            p.interpolationMethod,
-        #                            p.dataSource,
-        #                            p.setProfile,
-        #                            p.id,
-        #                            p.getProfile)
-        #                            for p in GenericProfiles]
-        #     SetofAttributes.append(('profileType varchar(100)',
-        #                           'profileQuantityAndUnit varchar(100)',
-        #                           'name varchar(1500)',
-        #                           'interpolationMethod varchar(100)',
-        #                           'dataSource varchar(100)',
-        #                           'setProfile varchar(100)',
-        #                           'id varchar(100) Primary Key',
-        #                           'getProfile varchar(100)'))
-        #     SetofTables.append('GenericProfiles')
-        #     SetofValues.append(valGenericProfiles)
+        CostInformations = esh.get_all_instances_of_type(esdl.CostInformation)
+        valCostInformations = []
+        valCostUnits = []
+        for a in Assets:
+            c = a.costInformation
+            if (a.costInformation):
+                temp = (a.id, a.name)
+                for d in dir(c):
+                    e = getattr(c, d)
+                    if e == None or type(e) == str:
+                        temp += (None,)
+                    elif type(e) == int:
+                        temp += (e,)
+                    else:
+                        temp += (e.value,)
+                        if e.profileQuantityAndUnit:
+                            pr = e.profileQuantityAndUnit
+                            unit = (a.id, a.name, d)
+                            if (pr in QuantityAndUnitReferences):
+                                pr = pr.reference
+                            if (pr in InfluxDBProfiles):
+                                print(f"Profile type {type(pr)} is not supported")
+                                # unit += (pr.id,
+                                #          pr.profileType,
+                                #          pr.profileQuantityAndUnit,
+                                #          pr.name,
+                                #          pr.interpolationMethod,
+                                #          pr.dataSource,
+                                #          pr.multiplier)
+                                # valCostUnits.append(unit)
+                                pr = pr.profileQuantityAndUnit
+                            if (type(pr) == esdl.QuantityAndUnitType):
+                                for q in dir(QuantityAndUnitTypes[0]):
+                                    f = getattr(pr, q)
+                                    if f == None:
+                                        unit += (None,)
+                                    else:
+                                        unit += (f,)
+                                valCostUnits.append(unit)
+                            else:
+                                print(f"Profile type {type(pr)} is not supported")
+                            print(unit)
+                valCostInformations.append(temp)
+        CostInformationsAtt = ('AssetId varchar(100)','AssetName varchar(100)')
+        if (CostInformations != []):
+            for d in dir(CostInformations[0]):
+                CostInformationsAtt += (d + ' varchar(100)',)
+            SetofAttributes.append(CostInformationsAtt)
+            SetofTables.append('CostInformations')
+            SetofValues.append(valCostInformations)
 
-        #     SingleValues = esh.get_all_instances_of_type(esdl.SingleValue)
-        #     valSingleValues = [(p.id, p.value) for p in SingleValues]
-        #     SetofAttributes.append(('id varchar(100) Primary Key', 'value varchar(100)'))
-        #     SetofTables.append('SingleValues')
-        #     SetofValues.append(valSingleValues)
+        CostUnitAtt = ('AssetId varchar(100)', 'AssetName varchar(100)', 'CostType varchar(100)')
+        print(CostUnitAtt)
+        if valCostUnits != []:
+            for d in dir(QuantityAndUnitTypes[0]):
+                CostUnitAtt += (d + ' varchar(100)',)
+            SetofAttributes.append(CostUnitAtt)
+            SetofTables.append('UnitCostinformation')
+            SetofValues.append(valCostUnits)
+
+
+        Constraints = []
+        valConstraints = []
+        for a in Assets:
+            for b in a.constraint:
+                Constraints.append(b)
+                temp = (a.id, a.name, b.id, b.name, b.attributeReference)
+                c = b.range
+                if (c):
+                    temp += (c.id, c.name, c.minValue, c.maxValue)
+                else:
+                    temp += (None, None, None, None)
+
+                valConstraints.append(temp)
+        if (Constraints != []):
+            SetofAttributes.append(('Node_Id varchar(100)',
+                                    'Node_name varchar(1500)',
+                                    'Constraint_Id varchar(100)',
+                                    'Constraint_name varchar(1500)',
+                                    'Constraint_Attribute varchar(100)',
+                                    'range_Id varchar(100)',
+                                    'range_name varchar(1500)',
+                                    'min varchar(100)',
+                                    'max varchar(100)'))
+            SetofTables.append('Constraints')
+            SetofValues.append(valConstraints)
 
         self.create_AIMMS_sql(self.database_name, SetofTables, SetofAttributes)
 
-        #   for loop that writes the tuple of values to the new database in the corresponding table.
+        #  for loop that writes the tuple of values to the new database in the corresponding table.
         for a in range(len(SetofTables)):
-            print('Exporting:', SetofTables[a])  # , SetofValues[a])
+            print('Exporting:', SetofTables[a])
             self.write_table_to_Sql(self.database_name, SetofTables[a], SetofValues[a])
 
-# # In[3]:
-
-# import sys
-
-# conn = pymysql.connect(
-#     host= Host,
-#     user=User,
-#     password=PW)
-# cursor = conn.cursor()
-
-# def str_to_class(classname):
-#     return getattr(sys.modules[__name__], classname)
-
-
-# def Check_dir(my_class):
-#     Attributes = [dir(n) for n in my_class]
-#     AllAttributes = set(sum(Attributes, []))
-#     return AllAttributes
-
-# if __name__ == "__main__" :
-#     #The next set contains all the ESDL classes that have been included in the last main function
-#     ThingsInESDL = get_sql("Select table_schema as database_name, table_name from information_schema.tables where table_type = 'BASE TABLE'and table_schema = '" + DB + "' order by database_name, table_name;").table_name
-#     for i in ThingsInESDL:
-#         print(i)
-#         dirThing = Check_dir(str_to_class(i))
-#         print(i, ': ')
-#         for j in dirThing:
-#             print('   ',j)
 
 import os
 from dotenv import load_dotenv
@@ -984,6 +870,6 @@ if __name__ == "__main__":
     # this removes the pandas warning
 
     ul = UniversalLink( EnvSettings.db_host(),  EnvSettings.db_name(), EnvSettings.db_user(), EnvSettings.db_password())
-    inputfilename = "ESDLs/Tholen4-AANGEPAST.esdl"
+    inputfilename = "ESDLs\KPIs Meso Iter\output_file_2_ETM_KPI.esdl"
     print('ESDL:', "...", inputfilename)
     success, error = ul.esdl_to_db(inputfilename)

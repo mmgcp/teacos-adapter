@@ -69,7 +69,7 @@ class TEACOS(Model):
             success, error = ul.esdl_str_to_db(input_esdl)
         else:
             path = TeacosAdapterConfig.input_esdl_file_path
-            inputfilename = "ESDLs/Tholen-InputApril.esdl"
+            inputfilename = "ESDLs/MICRO_Pand/pand_scenario_optional_with_InvestmentCosts.esdl"
             print('ESDL:', path, "..." ,inputfilename)
             success, error = ul.esdl_to_db(inputfilename)
 
@@ -89,8 +89,11 @@ class TEACOS(Model):
                        "DB_Host": EnvSettings.db_host(), "DB_Name": EnvSettings.db_name(),
                        "DB_User": EnvSettings.db_user(), "DB_Password": EnvSettings.db_password()}
 
-        requests.post(EnvSettings.teacos_API_url(), json=Credentials)
+        teacos1 = requests.post(EnvSettings.teacos_API_url(), json=Credentials)
 
+        if (teacos1.status_code != 200):
+            logger.error(f"TEACOS API executing failed with status {teacos1.status_code}")
+        else: print("TEACOS API SUCCES")
         ulback = SQLESDL(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
                          user=EnvSettings.db_user(), password=EnvSettings.db_password())
 
@@ -98,7 +101,7 @@ class TEACOS(Model):
             success, error, output_esdl = ulback.db_to_esdl_str(input_esdl)
         else:
             path = TeacosAdapterConfig.input_esdl_file_path
-            outputfilename = "ESDLs/Output-Tholen-InputApril.esdl"
+            outputfilename = "ESDLs/Output-pand_scenario_optional_with_InvestmentCosts.esdl"
             print('Output-ESDL:', path, "...", outputfilename)
             success, error = ulback.db_to_esdl(esdl_filename=inputfilename, output_esdl_filename=outputfilename)
 
