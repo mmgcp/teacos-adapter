@@ -19,6 +19,8 @@ build/
 *.pyproj.user
 .leu
 .~lock*
+.DS_Store
+*.pkl 
 
 venv/
 
@@ -26,3 +28,12 @@ ESDLs/
 
 .env.user.*
 
+*.esdl
+
+*/_old
+
+output
+Only_TEACOS
+manual_loop
+
+ESDLs-*

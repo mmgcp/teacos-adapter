@@ -39,11 +39,16 @@ class SQLESDL:
         self.cursor = self.conn.cursor()
         start = datetime.datetime.now()
         done = False
-        counter = 0;
+        counter = 0
         while done == False:
             counter += 1
-            self.log_table = self.get_sql('SELECT * FROM ' + self.database_name + '.log_table;')
-            if (len(self.log_table.index) > 0 and self.log_table.iloc[-1].log == 'Finished DB Write'):
+            self.log_table = self.get_sql(
+                "SELECT * FROM " + self.database_name + ".log_table;"
+            )
+            if (
+                len(self.log_table.index) > 0
+                and self.log_table.iloc[-1].log == "Finished DB Write"
+            ):
                 end = datetime.datetime.now()
                 done = True
             else:
@@ -53,10 +58,17 @@ class SQLESDL:
                 time.sleep(1)
 
         self.tables = self.get_sql(
-            "Select table_schema as database_name, table_name from information_schema.tables where table_type = 'BASE TABLE'and table_schema = '" + self.database_name + "' order by database_name, table_name;")
+            "Select table_schema as database_name, table_name from information_schema.tables where table_type = 'BASE TABLE'and table_schema = '"
+            + self.database_name
+            + "' order by database_name, table_name;"
+        )
         for i in self.tables.table_name:
-            if i != 'log_table':
-                setattr(self, i, self.get_sql('SELECT * FROM ' + self.database_name + '.' + i + ';'))
+            if i != "log_table":
+                setattr(
+                    self,
+                    i,
+                    self.get_sql("SELECT * FROM " + self.database_name + "." + i + ";"),
+                )
 
     def __del__(self):
         self.conn.close()
@@ -68,13 +80,13 @@ class SQLESDL:
         :param output_esdl_filename: file the database has to convert to
         :return: tuple (success (True/False), error message)
         """
-        print(f'Generating ESDL...')
+        print(f"Generating ESDL...")
         esh = EnergySystemHandler()
         try:
             esh.load_file(esdl_filename)
-            print(f'Parsing Results...')
+            print(f"Parsing Results...")
             self.generate_esdl(esh, output_esdl_filename)
-            return True, 'Ok'
+            return True, "Ok"
         except Exception as e:
             return False, str(e)
 
@@ -83,15 +95,15 @@ class SQLESDL:
         :param esdl_str_in: original esdl file
         :return: tuple (success (True/False), error message, esdl_string_out)
         """
-        print(f'Generating ESDL...')
+        print(f"Generating ESDL...")
         esh = EnergySystemHandler()
         try:
             esh.load_from_string(esdl_str_in)
-            print(f'Parsing Results...')
+            print(f"Parsing Results...")
             esdl_str_out = self.generate_esdl_str(esh)
-            return True, 'Ok', esdl_str_out
+            return True, "Ok", esdl_str_out
         except Exception as e:
-            return False, str(e), ''
+            return False, str(e), ""
 
     def get_sql(self, query):
         try:
@@ -103,31 +115,36 @@ class SQLESDL:
     def getAttributes(self):
         return dir(self)
 
-    def _generate_esdl(self, esh, context={'User': 'Test'}):
-        if hasattr(self, 'Producers'):
+    def _generate_esdl(self, esh, context={"User": "Test"}):
+        if hasattr(self, "Producers"):
             dfProducers = self.Producers
             Producers = esh.get_all_instances_of_type(esdl.Producer)
             for p in Producers:
                 p.power = float(dfProducers.loc[dfProducers["id"] == p.id].power)
-        if hasattr(self, 'Producers'):
+        if hasattr(self, "Producers"):
             dfAssetProfiles = self.AssetProfiles
             AssetProfiles = esh.get_all_instances_of_type(esdl.GenericProfile)
             for p in AssetProfiles:
                 if type(p) == esdl.InfluxDBProfile:
                     dfField = dfAssetProfiles.loc[dfAssetProfiles["field"] == p.field]
-                    if (type(dfField) == pd.Series):
+                    if type(dfField) == pd.Series:
                         p.multiplier = float(dfField.multiplier)
 
-
         df2 = self.KPIs
-        df3 = df2.where(df2.id_KPI.str.contains('TEACOS_Was_Optional_')).dropna()
+        df3 = df2.where(df2.id_KPI.str.contains("TEACOS_Was_Optional_")).dropna()
 
         print(df3)
         projname = []
         for i, row in df3.iterrows():
-            Assetname = row.id_KPI.replace("TEACOS_Was_Optional_", '')
+            Assetname = row.id_KPI.replace("TEACOS_Was_Optional_", "")
             projname.append(Assetname)
-            query = "SELECT * FROM " + self.database_name + ".Assets where `name` =  '" + Assetname.lstrip() + "';"
+            query = (
+                "SELECT * FROM "
+                + self.database_name
+                + ".Assets where `name` =  '"
+                + Assetname.lstrip()
+                + "';"
+            )
             AssetId = self.get_sql(query).id[0]
 
             changables = esh.get_by_id(AssetId)
@@ -139,7 +156,9 @@ class SQLESDL:
             KPIids = [i.id for i in KPIsInFile]
             if row.id_KPI not in KPIids:
                 print("First Run", row.value_KPI)
-                kpiwasoptional = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI))
+                kpiwasoptional = esdl.IntKPI(
+                    id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI)
+                )
                 changables.KPIs.kpi.append(kpiwasoptional)
                 print(kpiwasoptional, AssetId, 1)
 
@@ -155,21 +174,26 @@ class SQLESDL:
             elif a.name in projname:
                 proj.append(a.id)
 
-        if hasattr(self, 'Assets'):
+        if hasattr(self, "Assets"):
             df = self.Assets
-            df = df[df['id'].isin(proj)]
+            df = df[df["id"].isin(proj)]
             print(df.state)
             for i, row in df.iterrows():
                 changables = esh.get_by_id(row.id)
                 print(changables.name, changables.state, row.state)
                 changables.state = row.state
 
-
-        df4 = df2.where(df2.id_KPI.str.contains('TEACOS_Inversted_W_')).dropna()
+        df4 = df2.where(df2.id_KPI.str.contains("TEACOS_Inversted_W_")).dropna()
         print(df4)
         for i, row in df4.iterrows():
-            Assetname = row.id_KPI.replace("TEACOS_Inversted_W_", '')
-            query = "SELECT * FROM " + self.database_name + ".Assets where `name` =  '" + Assetname.lstrip() + "';"
+            Assetname = row.id_KPI.replace("TEACOS_Inversted_W_", "")
+            query = (
+                "SELECT * FROM "
+                + self.database_name
+                + ".Assets where `name` =  '"
+                + Assetname.lstrip()
+                + "';"
+            )
             AssetId = self.get_sql(query).id[0]
 
             changables = esh.get_by_id(AssetId)
@@ -182,16 +206,18 @@ class SQLESDL:
                 kpi = [i for i in KPIsInFile if i.id == row.id_KPI]
                 kpi[0].value = int(row.value_KPI)
             else:
-                kpiConstraints = esdl.IntKPI(id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI))
+                kpiConstraints = esdl.IntKPI(
+                    id=row.id_KPI, name=row.name_KPI, value=int(row.value_KPI)
+                )
                 changables.KPIs.kpi.append(kpiConstraints)
 
-    def generate_esdl(self, esh, outputfile, context={'User': 'Test'}):
+    def generate_esdl(self, esh, outputfile, context={"User": "Test"}):
         self._generate_esdl(esh, context)
 
         print(esh.to_string())
         esh.save_as(outputfile)
 
-    def generate_esdl_str(self, esh, context={'User': 'Test'}) -> str:
+    def generate_esdl_str(self, esh, context={"User": "Test"}) -> str:
         self._generate_esdl(esh, context)
         return esh.to_string()
 
@@ -220,4 +246,3 @@ class SQLESDL:
 #
 #     Test = SQLESDL(Host, DB, User, PW)
 #     print(Test.db_to_esdl(Filename, Outputfile))
-

@@ -47,11 +47,19 @@ def create_app(object_name):
     CORS(app, resources={r"/*": {"origins": "*"}})
 
     if EnvSettings.registry_endpoint():
-        logger.info(f"Registering with MM Registry at {EnvSettings.registry_endpoint()}")
+        logger.info(
+            f"Registering with MM Registry at {EnvSettings.registry_endpoint()}"
+        )
 
         # Register adapter to MM Registry
-        registry_data = {"uri": EnvSettings.external_url(), "used_workers": 0, "name": EnvSettings.adapter_id(),
-                         "owner": "TNO", "version": "1.0", "max_workers": 1}
+        registry_data = {
+            "uri": EnvSettings.external_url(),
+            "used_workers": 0,
+            "name": EnvSettings.adapter_id(),
+            "owner": "TNO",
+            "version": "1.0",
+            "max_workers": 1,
+        }
 
         try:
             r = requests.post(EnvSettings.registry_endpoint(), json=registry_data)

@@ -18,26 +18,30 @@ class Model(ABC):
 
         self.minio_client = None
         if EnvSettings.minio_endpoint():
-            logger.info(f"Connecting to Minio Object Store at {EnvSettings.minio_endpoint()}")
+            logger.info(
+                f"Connecting to Minio Object Store at {EnvSettings.minio_endpoint()}"
+            )
             self.minio_client = Minio(
                 endpoint=EnvSettings.minio_endpoint(),
                 secure=EnvSettings.minio_secure(),
                 access_key=EnvSettings.minio_access_key(),
-                secret_key=EnvSettings.minio_secret_key()
+                secret_key=EnvSettings.minio_secret_key(),
             )
 
-            logger.info(f"Connected to Minio Object Store at {EnvSettings.minio_endpoint()}")
+            logger.info(
+                f"Connected to Minio Object Store at {EnvSettings.minio_endpoint()}"
+            )
 
-            logger.info(f"Cred: {EnvSettings.minio_endpoint()}, {EnvSettings.minio_secure()}, "
-                        f"{EnvSettings.minio_access_key()}, {EnvSettings.minio_secret_key()}")
+            logger.info(
+                f"Cred: {EnvSettings.minio_endpoint()}, {EnvSettings.minio_secure()}, "
+                f"{EnvSettings.minio_access_key()}, {EnvSettings.minio_secret_key()}"
+            )
 
             try:
                 logger.info("Reading MinIO Buckets")
                 buckets = self.minio_client.list_buckets()
             except Exception as e:
-                logger.info('An exception occurred: {}'.format(e))
-
-
+                logger.info("An exception occurred: {}".format(e))
 
             logger.info(f"Retrieving MinIO Buckets")
             for bucket in buckets:
@@ -76,23 +80,28 @@ class Model(ABC):
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.ERROR,
-                reason="Error in Model.initialize(): model_run_id unknown"
+                reason="Error in Model.initialize(): model_run_id unknown",
             )
 
     def process_path(self, path: str, base_path: str) -> str:
-        if path[0] == '.':
-            return base_path + path.lstrip('./')
+        if path[0] == ".":
+            return base_path + path.lstrip("./")
         else:
-            return path.lstrip('./')
+            return path.lstrip("./")
 
     def load_from_minio(self, path, model_run_id):
-
         logger.info(f"Model Run ID: {str(model_run_id)}")
         logger.info(f"Model Path: {str(path)}")
-        logger.info(f"Model ESDL IN Path: {str(self.model_run_dict[model_run_id].config.input_esdl_file_path)}")
-        logger.info(f"Model ESDL IN Base Path: {str(self.model_run_dict[model_run_id].config.base_path)}")
+        logger.info(
+            f"Model ESDL IN Path: {str(self.model_run_dict[model_run_id].config.input_esdl_file_path)}"
+        )
+        logger.info(
+            f"Model ESDL IN Base Path: {str(self.model_run_dict[model_run_id].config.base_path)}"
+        )
 
-        path = self.process_path(path, self.model_run_dict[model_run_id].config.base_path)
+        path = self.process_path(
+            path, self.model_run_dict[model_run_id].config.base_path
+        )
 
         bucket = path.split("/")[0]
         rest_of_path = "/".join(path.split("/")[1:])
@@ -102,30 +111,48 @@ class Model(ABC):
             logger.info(f"Minio response: {response}")
             return response.data
         else:
-            logger.error(f"Failed to retrieve from Minio: bucket={bucket}, path={rest_of_path}")
+            logger.error(
+                f"Failed to retrieve from Minio: bucket={bucket}, path={rest_of_path}"
+            )
             return None
 
     def process_results(self, result):
-        return result.replace('\\n','').replace('\\"',"\"").replace("\'","'").replace("\\","").strip('\"')
+        return (
+            result.replace("\\n", "")
+            .replace('\\"', '"')
+            .replace("'", "'")
+            .replace("\\", "")
+            .strip('"')
+        )
 
     def store_result(self, model_run_id: str, result):
-
         if model_run_id in self.model_run_dict:
             res = self.process_results(result)
             if res and self.minio_client:
-
-                out = res.replace('\\n','').replace('\\"',"\"").replace("\'","'").replace("\\","").strip('\"')
+                out = (
+                    res.replace("\\n", "")
+                    .replace('\\"', '"')
+                    .replace("'", "'")
+                    .replace("\\", "")
+                    .strip('"')
+                )
                 logger.info(f"ESDL File Content After Processing:")
                 logger.info(out)
-                content = BytesIO(bytes(out, 'ascii'))
+                content = BytesIO(bytes(out, "ascii"))
 
                 logger.info(f"Model Run ID: {str(model_run_id)}")
-                logger.info(f"Model ESDL OUT Path: {str(self.model_run_dict[model_run_id].config.output_esdl_file_path)}")
-                logger.info(f"Model ESDL OUT Base Path: {str(self.model_run_dict[model_run_id].config.base_path)}")
+                logger.info(
+                    f"Model ESDL OUT Path: {str(self.model_run_dict[model_run_id].config.output_esdl_file_path)}"
+                )
+                logger.info(
+                    f"Model ESDL OUT Base Path: {str(self.model_run_dict[model_run_id].config.base_path)}"
+                )
 
                 # path = self.model_run_dict[model_run_id].config.output_esdl_file_path
-                path = self.process_path(self.model_run_dict[model_run_id].config.output_esdl_file_path,
-                                         self.model_run_dict[model_run_id].config.base_path)
+                path = self.process_path(
+                    self.model_run_dict[model_run_id].config.output_esdl_file_path,
+                    self.model_run_dict[model_run_id].config.base_path,
+                )
                 bucket = path.split("/")[0]
                 rest_of_path = "/".join(path.split("/")[1:])
 
@@ -135,17 +162,15 @@ class Model(ABC):
                 logger.info(f"--- STORING RESULT IN ---")
                 logger.info(f"Bucket: {bucket}")
                 logger.info(f"Rest of Path: {rest_of_path}")
-                #logger.info(f"Data: {str(content.getvalue())}")
+                # logger.info(f"Data: {str(content.getvalue())}")
                 logger.info(f"--- STORING RESULT IN ---")
 
-                self.minio_client.put_object(bucket, rest_of_path, content, content.getbuffer().nbytes)
-                self.model_run_dict[model_run_id].result = {
-                    "path": path
-                }
+                self.minio_client.put_object(
+                    bucket, rest_of_path, content, content.getbuffer().nbytes
+                )
+                self.model_run_dict[model_run_id].result = {"path": path}
             else:
-                self.model_run_dict[model_run_id].result = {
-                    "result": res
-                }
+                self.model_run_dict[model_run_id].result = {"result": res}
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.SUCCEEDED,
@@ -154,7 +179,7 @@ class Model(ABC):
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.ERROR,
-                reason="Error in Model.store_result(): model_run_id unknown"
+                reason="Error in Model.store_result(): model_run_id unknown",
             )
 
     def run(self, model_run_id: str):
@@ -164,7 +189,7 @@ class Model(ABC):
                 res = ModelRunInfo(
                     state=self.model_run_dict[model_run_id].state,
                     model_run_id=model_run_id,
-                    reason="Error: Model is not in READY state"
+                    reason="Error: Model is not in READY state",
                 )
                 return res
 
@@ -177,7 +202,7 @@ class Model(ABC):
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.ERROR,
-                reason="Error in Model.run(): model_run_id unknown"
+                reason="Error in Model.run(): model_run_id unknown",
             )
 
     def status(self, model_run_id: str):
@@ -193,7 +218,7 @@ class Model(ABC):
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.ERROR,
-                reason="Error in Model.status(): model_run_id unknown"
+                reason="Error in Model.status(): model_run_id unknown",
             )
 
     def results(self, model_run_id: str):
@@ -207,7 +232,7 @@ class Model(ABC):
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.ERROR,
-                reason="Error in Model.results(): model_run_id unknown"
+                reason="Error in Model.results(): model_run_id unknown",
             )
 
     def remove(self, model_run_id: str):
@@ -220,7 +245,6 @@ class Model(ABC):
                         m.state == ModelState.ACCEPTED
                         break
 
-
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.UNKNOWN,
@@ -229,5 +253,5 @@ class Model(ABC):
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.ERROR,
-                reason="Error in Model.remove(): model_run_id unknown"
+                reason="Error in Model.remove(): model_run_id unknown",
             )

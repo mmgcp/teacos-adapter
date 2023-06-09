@@ -18,7 +18,6 @@ logger = get_logger(__name__)
 
 class TEACOS(Model):
     def request(self):
-
         model_run_id = str(uuid4())
         self.model_run_dict[model_run_id] = ModelRun(
             state=ModelState.ACCEPTED,
@@ -31,7 +30,7 @@ class TEACOS(Model):
             return ModelRunInfo(
                 state=ModelState.PENDING,
                 reason="A model is already running",
-                model_run_id=model_run_id
+                model_run_id=model_run_id,
             )
 
         return ModelRunInfo(
@@ -42,81 +41,98 @@ class TEACOS(Model):
     def start_aimms_model(self, config: TeacosAdapterConfig, model_run_id):
         # convert ESDL to MySQL
         logger.info("Converting ESDL using Universal Link")
-        ul = UniversalLink(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
-                           user=EnvSettings.db_user(), password=EnvSettings.db_password())
+        ul = UniversalLink(
+            host=EnvSettings.db_host(),
+            database=EnvSettings.db_name(),
+            user=EnvSettings.db_user(),
+            password=EnvSettings.db_password(),
+        )
 
         if EnvSettings.minio_endpoint():
             logger.info(f"Loading ESDL from Minio at {config.input_esdl_file_path}")
             try:
-                input_esdl_bytes = self.load_from_minio(config.input_esdl_file_path, model_run_id)
+                input_esdl_bytes = self.load_from_minio(
+                    config.input_esdl_file_path, model_run_id
+                )
                 if input_esdl_bytes is None:
-                    logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
+                    logger.error(
+                        f"Error retrieving {config.input_esdl_file_path} from Minio"
+                    )
                     return ModelRunInfo(
                         model_run_id=model_run_id,
                         state=ModelState.ERROR,
-                        reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
+                        reason=f"Error retrieving {config.input_esdl_file_path} from Minio",
                     )
             except S3Error as e:
-                logger.error(f"Error retrieving {config.input_esdl_file_path} from Minio")
+                logger.error(
+                    f"Error retrieving {config.input_esdl_file_path} from Minio"
+                )
                 return ModelRunInfo(
                     model_run_id=model_run_id,
                     state=ModelState.ERROR,
-                    reason=f"Error retrieving {config.input_esdl_file_path} from Minio"
+                    reason=f"Error retrieving {config.input_esdl_file_path} from Minio",
                 )
 
             logger.info(f"ESDL Input File {str(input_esdl_bytes)}")
-            input_esdl = input_esdl_bytes.decode('utf-8')
+            input_esdl = input_esdl_bytes.decode("utf-8")
             success, error = ul.esdl_str_to_db(input_esdl)
         else:
             path = TeacosAdapterConfig.input_esdl_file_path
-            inputfilename = "ESDLs/MICRO_Pand/pand_scenario_optional_with_InvestmentCosts.esdl"
-            print('ESDL:', path, "..." ,inputfilename)
-            success, error = ul.esdl_to_db(inputfilename)
+            # inputfilename = "ESDLs-Input/Tholen_Input.esdl"
+            print("ESDL:", path, "...", config.input_esdl_file_path)
+            success, error = ul.esdl_to_db(config.input_esdl_file_path)
 
         del ul
         if not success:
             logger.error(f"Error executing Universal link: {error}")
             return ModelRunInfo(
-                model_run_id=model_run_id,
-                state=ModelState.ERROR,
-                reason=error
+                model_run_id=model_run_id, state=ModelState.ERROR, reason=error
             )
 
         logger.info("ESDL Database created for use by AIMMS")
+        print(EnvSettings.teacos_API_url())
+        Credentials = {
+            "TEACOS_USER": EnvSettings.teacos_user(),
+            "TEACOS_PASSWORD": EnvSettings.teacos_pw(),
+            "TEACOS_ENV": EnvSettings.teacos_env(),
+            "DB_Host": EnvSettings.db_host(),
+            "DB_Name": EnvSettings.db_name(),
+            "DB_User": EnvSettings.db_user(),
+            "DB_Password": EnvSettings.db_password(),
+        }
 
-        Credentials = {"TEACOS_USER": EnvSettings.teacos_user(), "TEACOS_PASSWORD": EnvSettings.teacos_pw(),
-                       "TEACOS_ENV": EnvSettings.teacos_env(),
-                       "DB_Host": EnvSettings.db_host(), "DB_Name": EnvSettings.db_name(),
-                       "DB_User": EnvSettings.db_user(), "DB_Password": EnvSettings.db_password()}
+        requests.post(EnvSettings.teacos_API_url(), json=Credentials)
 
-        teacos1 = requests.post(EnvSettings.teacos_API_url(), json=Credentials)
-
-        if (teacos1.status_code != 200):
-            logger.error(f"TEACOS API executing failed with status {teacos1.status_code}")
-        else: print("TEACOS API SUCCES")
-        ulback = SQLESDL(host=EnvSettings.db_host(), database=EnvSettings.db_name(),
-                         user=EnvSettings.db_user(), password=EnvSettings.db_password())
+        ulback = SQLESDL(
+            host=EnvSettings.db_host(),
+            database=EnvSettings.db_name(),
+            user=EnvSettings.db_user(),
+            password=EnvSettings.db_password(),
+        )
 
         if EnvSettings.minio_endpoint():
             success, error, output_esdl = ulback.db_to_esdl_str(input_esdl)
         else:
             path = TeacosAdapterConfig.input_esdl_file_path
-            outputfilename = "ESDLs/Output-pand_scenario_optional_with_InvestmentCosts.esdl"
-            print('Output-ESDL:', path, "...", outputfilename)
-            success, error = ulback.db_to_esdl(esdl_filename=inputfilename, output_esdl_filename=outputfilename)
+            # outputfilename = ("ESDLs-Output/Tholen_Input_Manual_T=1_A=0.esdl")
+            print("Output-ESDL:", path, "...", config.output_esdl_file_path)
+            success, error = ulback.db_to_esdl(
+                esdl_filename=str(config.input_esdl_file_path),
+                output_esdl_filename=str(config.output_esdl_file_path),
+            )
 
         del ulback
         if not success:
             logger.error(f"Error executing Universal link: {error}")
             return ModelRunInfo(
-                model_run_id=model_run_id,
-                state=ModelState.ERROR,
-                reason=error
+                model_run_id=model_run_id, state=ModelState.ERROR, reason=error
             )
         else:
             logger.info("AIMMS has finished, collecting results...")
             if EnvSettings.minio_endpoint():
-                return Model.store_result(self, model_run_id=model_run_id, result=output_esdl)
+                return Model.store_result(
+                    self, model_run_id=model_run_id, result=output_esdl
+                )
             else:
                 return ModelRunInfo(
                     model_run_id=model_run_id,
@@ -141,21 +157,24 @@ class TEACOS(Model):
         else:
             return start_aimms_info
 
-
     def run(self, model_run_id: str):
-
         res = Model.run(self, model_run_id=model_run_id)
 
-        if model_run_id in self.model_run_dict and self.model_run_dict[model_run_id].state == ModelState.RUNNING:
+        if (
+            model_run_id in self.model_run_dict
+            and self.model_run_dict[model_run_id].state == ModelState.RUNNING
+        ):
             config: TeacosAdapterConfig = self.model_run_dict[model_run_id].config
-            executor.submit_stored(model_run_id, self.threaded_run, model_run_id, config)
+            executor.submit_stored(
+                model_run_id, self.threaded_run, model_run_id, config
+            )
             res.state = self.model_run_dict[model_run_id].state
             return res
         else:
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.ERROR,
-                reason="Error in TEACOS.run(): model_run_id unknown or model is in wrong state"
+                reason="Error in TEACOS.run(): model_run_id unknown or model is in wrong state",
             )
 
     def status(self, model_run_id: str):
@@ -164,15 +183,17 @@ class TEACOS(Model):
                 return ModelRunInfo(
                     state=self.model_run_dict[model_run_id].state,
                     model_run_id=model_run_id,
-                    reason=f"executor.futures._state: {executor.futures._state(model_run_id)}"
+                    reason=f"executor.futures._state: {executor.futures._state(model_run_id)}",
                 )
             else:
                 # print("executor.futures._state: ", executor.futures._state(model_run_id))   # FINISHED
                 future = executor.futures.pop(model_run_id)
-                executor.futures.add(model_run_id, future)  # Put it back on again, so it can be retreived in results
+                executor.futures.add(
+                    model_run_id, future
+                )  # Put it back on again, so it can be retreived in results
                 model_run_info = future.result()
                 if model_run_info.result is not None:
-                    print('Model execution result:', model_run_info.result)
+                    print("Model execution result:", model_run_info.result)
                 else:
                     logger.warning("No result in model_run_info variable")
                 return model_run_info
@@ -180,7 +201,7 @@ class TEACOS(Model):
             return ModelRunInfo(
                 model_run_id=model_run_id,
                 state=ModelState.ERROR,
-                reason="Error in ESSIM.status(): model_run_id unknown"
+                reason="Error in ESSIM.status(): model_run_id unknown",
             )
 
     def process_results(self, result):
@@ -210,7 +231,7 @@ class TEACOS(Model):
                 return ModelRunInfo(
                     model_run_id=model_run_id,
                     state=ModelState.ERROR,
-                    reason="Error in ESSIM.results(): model_run_id unknown"
+                    reason="Error in ESSIM.results(): model_run_id unknown",
                 )
         else:
             return Model.results(self, model_run_id=model_run_id)

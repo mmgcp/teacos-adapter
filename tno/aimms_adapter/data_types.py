@@ -40,5 +40,3 @@ class ModelRunInfo:
 
     # support for Schema generation in Marshmallow
     Schema: ClassVar[Type[Schema]] = Schema
-
-

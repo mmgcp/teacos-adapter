@@ -24,7 +24,7 @@ app = create_app("tno.aimms_adapter.settings.%sConfig" % EnvSettings.env().capit
 
 @app.before_request
 def before_request():
-    logger.debug(f'Before_request {request}')
+    logger.debug(f"Before_request {request}")
 
 
 @app.after_request
@@ -50,7 +50,9 @@ def serve_static(path):
 @app.errorhandler(HTTPException)
 def handle_exception(e):
     extra = ": "
-    if hasattr(e, "exc"):  # add semantic information about errors json for marshmallow validation
+    if hasattr(
+        e, "exc"
+    ):  # add semantic information about errors json for marshmallow validation
         extra = extra + str(e.exc)
     """Return JSON instead of HTML for HTTP errors."""
     response = e.get_response()
@@ -71,9 +73,13 @@ def handle_500(e):
     return json.dumps({"message": "Internal Server Error"}), 500
 
 
-if __name__ == "__main__":
+def main():
     app.run(
         host=EnvSettings.flask_server_host(),
         port=EnvSettings.flask_server_port(),
         use_reloader=not EnvSettings.is_production(),
     )
+
+
+if __name__ == "__main__":
+    main()

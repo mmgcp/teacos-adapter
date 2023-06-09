@@ -83,28 +83,21 @@ class EnvSettings:
     def teacos_env():
         return os.getenv("TEACOS_ENV", "")
 
-
-
-
-
-
-
     @staticmethod
     def db_host():
         return os.getenv("DATABASE_HOST", "")
+
     @staticmethod
     def db_name():
         return os.getenv("DATABASE_NAME", "")
+
     @staticmethod
     def db_user():
         return os.getenv("DATABASE_USER", "")
+
     @staticmethod
     def db_password():
         return os.getenv("DATABASE_PASSWORD", "")
-
-
-
-
 
 
 class Config(object):

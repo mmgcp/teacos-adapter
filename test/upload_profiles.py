@@ -9,14 +9,14 @@ import codecs
 
 db_host = "localhost"
 db_port = 8086
-db_name = 'energy_profiles'
+db_name = "energy_profiles"
 use_ssl = False
 
 
 def connect_database():
     client = InfluxDBClient(host=db_host, port=db_port, database=db_name, ssl=use_ssl)
     if db_name not in client.get_list_database():
-       client.create_database(db_name)
+        client.create_database(db_name)
     return client
 
 
@@ -33,8 +33,8 @@ def process_profiles_csv(client, file_path):
     file_name = path_parts[-1]
     measurement = os.path.splitext(file_name)[0]
 
-    with codecs.open(file_path, encoding='utf-8-sig') as csv_file:
-        reader = csv.reader(csv_file, delimiter=';')
+    with codecs.open(file_path, encoding="utf-8-sig") as csv_file:
+        reader = csv.reader(csv_file, delimiter=";")
 
         column_names = next(reader)
         print(column_names)
@@ -48,11 +48,13 @@ def process_profiles_csv(client, file_path):
                 if row[i]:
                     fields[column_names[i]] = atof(row[i])
 
-            json_body.append({
-                "measurement": measurement,
-                "time": format_datetime(row[0]),
-                "fields": fields
-            })
+            json_body.append(
+                {
+                    "measurement": measurement,
+                    "time": format_datetime(row[0]),
+                    "fields": fields,
+                }
+            )
 
         client.write_points(points=json_body, database=db_name, batch_size=100)
 
